@@ -97,6 +97,7 @@ import LockOffIcon from 'vue-material-design-icons/LockOffOutline.vue'
 import ReplyIcon from 'vue-material-design-icons/ReplyOutline.vue'
 import Imip from './Imip.vue'
 import Itinerary from './Itinerary.vue'
+import Schema from './Schema'
 import MessageAttachments from './MessageAttachments.vue'
 import MessageEncryptedBody from './MessageEncryptedBody.vue'
 import MessageHTMLBody from './MessageHTMLBody.vue'
@@ -111,6 +112,7 @@ export default {
 	components: {
 		Itinerary,
 		IconInfo,
+		Schema,
 		MessageAttachments,
 		MessageEncryptedBody,
 		MessageHTMLBody,
@@ -185,6 +187,9 @@ export default {
 
 		hasCurrentUserPrincipalAndCollections() {
 			return this.mainStore.hasCurrentUserPrincipalAndCollections
+		},
+		schema() {
+			return this.message.schema ?? {}
 		},
 	},
 
