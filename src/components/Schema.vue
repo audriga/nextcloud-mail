@@ -18,7 +18,7 @@
  - along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -
  -->
-
+ 
 <template>
 	<div class="schema">
 		<div v-html="html"></div>
@@ -64,8 +64,6 @@ export default {
 			return rendered
 		},
 		async updateData(updatedValues) {
-			this.json["name"] = "Hollerallee 99, 28215 Bremen"
-
 			for (const key in updatedValues) {
 				if (this.data.hasOwnProperty(key)) {
 					this.data[key] = updatedValues[key]
@@ -202,7 +200,7 @@ export default {
 	color: var(--color-main-text);
 
 	/* settings for truncating single line text */
-    max-width: 95%;
+    max-width: 100%;
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow-x: auto;

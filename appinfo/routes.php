@@ -525,6 +525,11 @@ return [
 			'url' => '/api/textBlocks/{id}/shares',
 			'verb' => 'GET',
 		],
+		[
+			'name' => 'messages#updateSchemaContent',
+			'url' => '/api/messages/updateSchema/{url}',
+			'verb' => 'GET'
+		],
 	],
 	'resources' => [
 		'accounts' => ['url' => '/api/accounts'],
