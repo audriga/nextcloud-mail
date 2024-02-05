@@ -266,22 +266,18 @@ class MessagesController extends Controller {
 			$client->logout();
 		}
 
-		$itineraries = $this->itineraryService->getCached($account, $mailbox, $message->getUid());
-		if ($itineraries) {
-			$json['itineraries'] = $itineraries;
-		}
+		$extractionLibrary = $this->preferences->getPreference($this->currentUserId, 'extraction-library', 'kitinerary');
 
-		/*
-		 * TODO:
-		 * 
-		 * Here, the plan is to add and read config options to be able to determine
-		 * whether the user wants to use the extraction/rendering of KItinerary or 
-		 * the html2jsonld library for extraction and subsequently jsonld2html for
-		 * rendering schema markup in the mail message.
-		 */
-		$schema = $this->schemaService->extract($account, $mailbox, $message->getUid());
-		if ($schema) {
-			$json["schema"] = $schema;
+		if ($extractionLibrary === 'kitinerary') {
+			$itineraries = $this->itineraryService->getCached($account, $mailbox, $message->getUid());
+			if ($itineraries) {
+				$json['itineraries'] = $itineraries;
+			}
+		} else {
+			$schema = $this->schemaService->extract($account, $mailbox, $message->getUid());
+			if ($schema) {
+				$json["schema"] = $schema;
+			}
 		}
 
 		$json['attachments'] = $this->enrichAttachments($id, $json['attachments']);
@@ -1168,5 +1164,21 @@ class MessagesController extends Controller {
 
 	private function getCacheForAccount(int $accountId): ICache {
 		return $this->cacheFactory->createDistributed("mail_account_$accountId");
+	}
+
+	public function updateSchemaContent(string $url): JSONResponse {
+		$decodedUrl = rawurldecode($url);
+
+		if (!preg_match("/.*\.json$/", $decodedUrl)) {
+			return new JSONResponse([], Http::STATUS_BAD_REQUEST);
+		}
+
+		$data = json_decode(file_get_contents($decodedUrl));
+
+		if ($data) {
+			return new JSONResponse($data);
+		}
+
+		return new JSONResponse([], Http::STATUS_BAD_REQUEST);
 	}
 }
