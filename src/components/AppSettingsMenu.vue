@@ -374,6 +374,8 @@ export default {
 			loadingOptOutSettings: false,
 			loadingInternalAddresses: false,
 			loadingReplySettings: false,
+			MarkupLibraryText: t('mail', 'Use SML instead of Kitinerary for rendering Markup data.'),
+			loadingMarkupLibrarySettings: false,
 			contextChatText: t('mail', 'Make mails available to Context Chat'),
 			followUpReminderText: t('mail', 'Remind about messages that require a reply but received none'),
 			internalAddressText: t('mail', 'Highlight external addresses'),
@@ -410,6 +412,9 @@ export default {
 
 		useBottomReplies() {
 			return this.mainStore.getPreference('reply-mode', 'top') === 'bottom'
+		},
+		useSmlLibrary() {
+			return this.$store.getters.getPreference('extraction-library', 'kitinerary') === 'sml'
 		},
 
 		allowNewMailAccounts() {
@@ -751,6 +756,19 @@ export default {
 					Logger.error('could not register protocol handler', { err })
 				}
 			}
+		},
+		onToggleMarkupLibrary() {
+			this.loadingMarkupLibrarySettings = true
+
+			this.$store
+				.dispatch('savePreference', {
+					key: 'extraction-library',
+					value: e.target.checked ? 'sml' : 'kitinerary',
+				})
+				.catch((error) => Logger.error('could not save preferences', { error }))
+				.then(() => {
+					this.loadingMarkupLibrarySettings = false
+				})
 		},
 
 		mailvelopeAuthorizeDomain() {
