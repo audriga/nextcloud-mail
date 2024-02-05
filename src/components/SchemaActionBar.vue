@@ -120,6 +120,10 @@ export default {
     methods: {
         async sendRecipeToCookbook () {
             try {
+                /* Send the recipe to the cookbook api and
+                 * wait for the response status. Set to loading
+                 * icon in the meantime.
+                 */
                 this.recipeSendLoading = true;
 
 				const success = this.$store.dispatch('sendRecipeToCookbook', {
