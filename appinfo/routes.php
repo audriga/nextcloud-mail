@@ -475,6 +475,11 @@ return [
 			'url' => '/api/out-of-office/{accountId}/follow-system',
 			'verb' => 'POST',
 		],
+		[
+			'name' => 'messages#updateSchemaContent',
+			'url' => '/api/messages/updateSchema/{url}',
+			'verb' => 'GET'
+		],
 	],
 	'resources' => [
 		'accounts' => ['url' => '/api/accounts'],

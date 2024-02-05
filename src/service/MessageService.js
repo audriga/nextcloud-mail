@@ -291,3 +291,17 @@ export async function sendRecipe(json) {
 		return false
 	}
 }
+
+export async function updateSchema(liveUri) {
+	const url = generateUrl('/apps/mail/api/messages/updateSchema/{liveUri}', {
+		liveUri,
+	})
+
+	try {
+		const result = await axios.get(url)
+
+		return result.data
+	} catch (e) {
+		return false
+	}
+}

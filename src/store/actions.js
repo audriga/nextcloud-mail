@@ -81,6 +81,7 @@ import {
 	updateEnvelopeTag,
 	deleteTag,
 	sendRecipe,
+	updateSchema,
 } from '../service/MessageService.js'
 import { moveDraft, updateDraft } from '../service/DraftService.js'
 import * as AliasService from '../service/AliasService.js'
@@ -1511,4 +1512,16 @@ export default {
 			}
 		})
 	},
+
+	async callLiveUri({ commit }, { liveUri }) {
+		return handleHttpAuthErrors(commit, async () => {
+			try {
+				const result = await updateSchema(liveUri)
+				
+				return result
+			} catch (e) {
+				throw e
+			}
+		})
+	}
 }
