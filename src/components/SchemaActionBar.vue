@@ -146,7 +146,7 @@ export default {
                 this.refreshLocationLoading = true
 
                 const result = this.$store.dispatch('callLiveUri', {
-                    liveUri: this.$parent.json["liveUri"],
+                    liveUri: encodeURIComponent(this.$parent.json["liveUri"]),
 				})
                 
 				result.then((updatedValues) => { 
