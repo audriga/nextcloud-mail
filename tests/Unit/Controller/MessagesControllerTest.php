@@ -156,7 +156,7 @@ class MessagesControllerTest extends TestCase {
 		$this->mailManager = $this->createMock(IMailManager::class);
 		$this->mailSearch = $this->createMock(IMailSearch::class);
 		$this->itineraryService = $this->createMock(ItineraryService::class);
-		$this->schemaService = $this->creatMock(SchemaService::class);
+		$this->schemaService = $this->createMock(SchemaService::class);
 		$this->userId = 'john';
 		$this->userFolder = $this->createMock(Folder::class);
 		$this->request = $this->createMock(Request::class);
