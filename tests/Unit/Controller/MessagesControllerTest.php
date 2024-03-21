@@ -50,6 +50,7 @@ use OCA\Mail\Model\Message;
 use OCA\Mail\Service\AccountService;
 use OCA\Mail\Service\AiIntegrations\AiIntegrationsService;
 use OCA\Mail\Service\ItineraryService;
+use OCA\Mail\Service\SchemaService;
 use OCA\Mail\Service\MailManager;
 use OCA\Mail\Service\SmimeService;
 use OCA\Mail\Service\SnoozeService;
@@ -86,6 +87,9 @@ class MessagesControllerTest extends TestCase {
 
 	/** @var ItineraryService|MockObject */
 	private $itineraryService;
+
+	/** @var SchemaService|MockObject */
+	private $schemaService;
 
 	/** @var string */
 	private $userId;
@@ -152,6 +156,7 @@ class MessagesControllerTest extends TestCase {
 		$this->mailManager = $this->createMock(IMailManager::class);
 		$this->mailSearch = $this->createMock(IMailSearch::class);
 		$this->itineraryService = $this->createMock(ItineraryService::class);
+		$this->schemaService = $this->creatMock(SchemaService::class);
 		$this->userId = 'john';
 		$this->userFolder = $this->createMock(Folder::class);
 		$this->request = $this->createMock(Request::class);
@@ -185,6 +190,7 @@ class MessagesControllerTest extends TestCase {
 			$this->mailManager,
 			$this->mailSearch,
 			$this->itineraryService,
+			$this->schemaService,
 			$this->userId,
 			$this->userFolder,
 			$this->logger,
