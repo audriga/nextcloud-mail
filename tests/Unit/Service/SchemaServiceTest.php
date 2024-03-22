@@ -172,6 +172,6 @@ class SchemaServiceTest extends TestCase {
 			1
 		);
 
-		$this->assertEquals(1, $result->count());
+		$this->assertEquals(1, count($result));
 	}
 }
