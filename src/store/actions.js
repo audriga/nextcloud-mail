@@ -1505,7 +1505,7 @@ export default {
 		return handleHttpAuthErrors(commit, async () => {
 			try {
 				const result = await sendRecipe(recipe)
-				
+
 				return result
 			} catch (e) {
 				throw e
@@ -1517,11 +1517,11 @@ export default {
 		return handleHttpAuthErrors(commit, async () => {
 			try {
 				const result = await updateSchema(liveUri)
-				
+
 				return result
 			} catch (e) {
 				throw e
 			}
 		})
-	}
+	},
 }

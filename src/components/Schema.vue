@@ -18,12 +18,12 @@
  - along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -
  -->
- 
+
 <template>
 	<div class="schema">
-		<div v-html="html"></div>
+		<div v-html="html" />
 		<div class="schema-action-bar">
-			<SchemaActionBar v-on:update-from-live-uri="updateData" />
+			<SchemaActionBar @update-from-live-uri="updateData" />
 		</div>
 	</div>
 </template>
@@ -35,7 +35,7 @@ import SchemaActionBar from './SchemaActionBar'
 export default {
 	name: 'Schema',
 	components: {
-    	SchemaActionBar
+    	SchemaActionBar,
 	},
 	props: {
 		json: {
@@ -47,13 +47,13 @@ export default {
 			required: false,
 		},
 	},
-	data: function() {
+	data() {
 		return {
-			html: ""
-		};
+			html: '',
+		}
 	},
-	created () {
-		this.getRenderedSchema() 
+	created() {
+		this.getRenderedSchema()
 	},
 	methods: {
 		getRenderedSchema() {
@@ -71,8 +71,8 @@ export default {
 			}
 
 			this.getRenderedSchema()
-		}
-	}
+		},
+	},
 }
 
 </script>
@@ -119,7 +119,6 @@ export default {
 	padding: 20px;
 
 	background: var(--color-main-background);
-
 
 }
 
@@ -192,7 +191,6 @@ export default {
 
 	margin: 4px 0px;
 
-
 	font-size: 20px;
 	font-weight: bold;
 	min-height: 20%;
@@ -204,7 +202,7 @@ export default {
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow-x: auto;
-	
+
 }
 
 .schema >>> .smlCardRow .card_content {

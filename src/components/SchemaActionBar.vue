@@ -20,58 +20,55 @@
  -->
 
 <template>
-    <div class="action-bar">
-        <NcActions
-        :force-name="true"
-        :secondary="true"
-        :inline="1" >
-            <NcActionButton v-if="schemaType === 'Recipe'"
-            :aria-label="t('mail', 'Add Recipe To Cookbook')"
-            @click.prevent="sendRecipeToCookbook()" >     
-                <template #icon>
-                    <IconLoading v-if="recipeSendLoading"
-					    :size="20" />
-                    <SilverwareForkKnifeIcon v-else-if="recipeSendSuccess === null"
-                        :size="20" />
-                    <CheckIcon v-else-if="recipeSendSuccess === true"
-                        :size="20" />
-                    <CloseIcon v-else-if="recipeSendSuccess === false"
-                        :size="20" />
-                </template>
-                Add Recipe To Cookbook
-            </NcActionButton>
-            <NcActionButton v-if="schemaType === 'Place' && hasLiveUri"
-            :aria-label="t('mail', 'Refresh Live Location')"
-            @click.prevent="refreshLiveUri()" >
-                <template #icon>
-                    <IconLoading v-if="refreshLocationLoading"
-					    :size="20" />
-                    <MapMarkerIcon v-else
-                        :size="20" />
-                </template>
-                Refresh Live Location
-            </NcActionButton>
-            <NcActionButton v-if="schemaType === 'Place'"
-            :aria-label="t('mail', 'Open in Google Maps')"
-            @click.prevent="openLocationInGoogleMaps()" >
-                <template #icon>
-                    <MapSearchOutlineIcon
-                        :size="20" />
-                </template>
-                Open in Google Maps
-            </NcActionButton>
-            <NcActionButton v-if="hasUrlValue"
-                :aria-label="t('mail','Open Source URL')"
-                @click.prevent="openUrlInNewWindow()" >
-                <template #icon>
-                    <OpenInNewIcon
-                        :title="t('mail', 'Open Source URL')"
-                        :size="20" />
-                </template>
-                Open Source URL
-            </NcActionButton>
-        </NcActions>
-    </div>
+	<div class="action-bar">
+		<NcActions :force-name="true"
+			:secondary="true"
+			:inline="1">
+			<NcActionButton v-if="schemaType === 'Recipe'"
+				:aria-label="t('mail', 'Add Recipe To Cookbook')"
+				@click.prevent="sendRecipeToCookbook()">
+				<template #icon>
+					<IconLoading v-if="recipeSendLoading"
+						:size="20" />
+					<SilverwareForkKnifeIcon v-else-if="recipeSendSuccess === null"
+						:size="20" />
+					<CheckIcon v-else-if="recipeSendSuccess === true"
+						:size="20" />
+					<CloseIcon v-else-if="recipeSendSuccess === false"
+						:size="20" />
+				</template>
+				Add Recipe To Cookbook
+			</NcActionButton>
+			<NcActionButton v-if="schemaType === 'Place' && hasLiveUri"
+				:aria-label="t('mail', 'Refresh Live Location')"
+				@click.prevent="refreshLiveUri()">
+				<template #icon>
+					<IconLoading v-if="refreshLocationLoading"
+						:size="20" />
+					<MapMarkerIcon v-else
+						:size="20" />
+				</template>
+				Refresh Live Location
+			</NcActionButton>
+			<NcActionButton v-if="schemaType === 'Place'"
+				:aria-label="t('mail', 'Open in Google Maps')"
+				@click.prevent="openLocationInGoogleMaps()">
+				<template #icon>
+					<MapSearchOutlineIcon :size="20" />
+				</template>
+				Open in Google Maps
+			</NcActionButton>
+			<NcActionButton v-if="hasUrlValue"
+				:aria-label="t('mail','Open Source URL')"
+				@click.prevent="openUrlInNewWindow()">
+				<template #icon>
+					<OpenInNewIcon :title="t('mail', 'Open Source URL')"
+						:size="20" />
+				</template>
+				Open Source URL
+			</NcActionButton>
+		</NcActions>
+	</div>
 </template>
 
 <script>
@@ -89,88 +86,88 @@ import IconLoading from '@nextcloud/vue/dist/Components/NcLoadingIcon.js'
 export default {
 	name: 'SchemaActionBar',
 	components: {
-        NcActions,
+		NcActions,
 	    NcActionButton,
 	    SilverwareForkKnifeIcon,
-        CheckIcon,
-        CloseIcon,
-        OpenInNewIcon,
-        MapMarkerIcon,
-        MapSearchOutlineIcon,
-        IconLoading,
-    },
-    data: function() {
-        return {
-            recipeSendSuccess: null,
-            recipeSendLoading: false,
-            refreshLocationLoading: false,
-        }
-    },
-    computed: {
-        schemaType() {
-            return this.$parent.json['@type']
-        },
-        hasUrlValue() {
-            return this.$parent.json.hasOwnProperty('url')
-        },
-        hasLiveUri() {
-            return this.$parent.json.hasOwnProperty('liveUri')
-        }
-    },
-    methods: {
-        async sendRecipeToCookbook () {
-            try {
-                /* Send the recipe to the cookbook api and
+		CheckIcon,
+		CloseIcon,
+		OpenInNewIcon,
+		MapMarkerIcon,
+		MapSearchOutlineIcon,
+		IconLoading,
+	},
+	data() {
+		return {
+			recipeSendSuccess: null,
+			recipeSendLoading: false,
+			refreshLocationLoading: false,
+		}
+	},
+	computed: {
+		schemaType() {
+			return this.$parent.json['@type']
+		},
+		hasUrlValue() {
+			return this.$parent.json.hasOwnProperty('url')
+		},
+		hasLiveUri() {
+			return this.$parent.json.hasOwnProperty('liveUri')
+		},
+	},
+	methods: {
+		async sendRecipeToCookbook() {
+			try {
+				/* Send the recipe to the cookbook api and
                  * wait for the response status. Set to loading
                  * icon in the meantime.
                  */
-                this.recipeSendLoading = true;
+				this.recipeSendLoading = true
 
 				const success = this.$store.dispatch('sendRecipeToCookbook', {
-						recipe: this.$parent.json,
+					recipe: this.$parent.json,
 				})
 
 				success.then((value) => {
-                    this.recipeSendSuccess = value
-                    this.recipeSendLoading = false
-                })
+					this.recipeSendSuccess = value
+					this.recipeSendLoading = false
+				})
 
 			} catch (e) {
-                this.recipeSendLoading = false
+				this.recipeSendLoading = false
 				throw e
 			}
 		},
-        refreshLiveUri() {
-            
-            try {
-                this.refreshLocationLoading = true
+		refreshLiveUri() {
 
-                const result = this.$store.dispatch('callLiveUri', {
-                    liveUri: encodeURIComponent(this.$parent.json["liveUri"]),
+			try {
+				this.refreshLocationLoading = true
+
+				const result = this.$store.dispatch('callLiveUri', {
+					liveUri: encodeURIComponent(this.$parent.json.liveUri),
 				})
-                
-				result.then((updatedValues) => { 
-                    this.refreshLocationLoading = false
-                    this.$emit('update-from-live-uri', updatedValues)
-                })
+
+				result.then((updatedValues) => {
+					this.refreshLocationLoading = false
+					this.$emit('update-from-live-uri', updatedValues)
+				})
 			} catch (e) {
-                this.refreshLocationLoading = false
+				this.refreshLocationLoading = false
 				throw e
 			}
 
-        },
-        openLocationInGoogleMaps() {
-            const lat = this.$parent.json["geo"]["latitude"]
-            const lon = this.$parent.json["geo"]["longitude"]
+		},
+		openLocationInGoogleMaps() {
+			const lat = this.$parent.json.geo.latitude
+			const lon = this.$parent.json.geo.longitude
 
-            const url = 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lon
+			const url = 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lon
 
-            window.open(url, '_blank').focus()
-        },
-        openUrlInNewWindow() {
-            window.open(this.json["url"], '_blank').focus()
-        },
-    }
+			window.open(url, '_blank').focus()
+		},
+		openUrlInNewWindow() {
+			window.open(this.json.url, '_blank').focus()
+		},
+	},
 }
 </script>
 

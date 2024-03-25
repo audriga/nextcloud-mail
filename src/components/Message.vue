@@ -37,7 +37,7 @@
 			<Itinerary :entries="itineraries" :message-id="message.messageId" />
 		</div>
 		<div v-if="Object.entries(schema).length > 0" class="message-schema">
-			<Schema :json="schema"/>
+			<Schema :json="schema" />
 		</div>
 		<div v-if="message.scheduling.length > 0" class="message-imip">
 			<Imip v-for="scheduling in message.scheduling"
@@ -74,7 +74,7 @@
 				<template #icon>
 					<ReplyIcon />
 				</template>
-				{{t('mail','Reply')}}
+				{{ t('mail','Reply') }}
 			</NcButton>
 		</div>
 	</div>
