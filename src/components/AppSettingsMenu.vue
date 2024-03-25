@@ -91,20 +91,6 @@
 					<label for="bottom-reply-enabled">{{ replySettingsText }}</label>
 				</p>
 			</NcAppSettingsSection>
-			<NcAppSettingsSection id="markup-settings" :name="t('mail', 'Markupt extraction library')">
-				<p v-if="loadingMarkupLibrarySettings" class="app-settings markup-libary">
-					<IconLoading :size="20" />
-					{{ MarkupLibraryText }}
-				</p>
-				<p v-else class="app-settings">
-					<input id="sml-markup-library-used"
-						class="checkbox"
-						type="checkbox"
-						:checked="useSmlLibrary"
-						@change="onToggleMarkupLibrary">
-					<label for="sml-markup-library-used">{{ MarkupLibraryText }}</label>
-				</p>
-			</NcAppSettingsSection>
 			<NcAppSettingsSection id="mailto-settings" :name="t('mail', 'Mailto')">
 				<p class="settings-hint">
 					{{ t('mail', 'Register as application for mail links') }}
@@ -257,8 +243,6 @@ export default {
 			// eslint-disable-next-line
 			replySettingsText: t('mail', 'Put my text to the bottom of a reply instead of on top of it.'),
 			loadingReplySettings: false,
-			MarkupLibraryText: t('mail', 'Use SML instead of Kitinerary for rendering Markup data.'),
-			loadingMarkupLibrarySettings: false,
 			// eslint-disable-next-line
 			autoTaggingText: t('mail', 'Automatically classify importance of new email'),
 			toggleAutoTagging: false,
@@ -406,19 +390,6 @@ export default {
 					Logger.error('could not register protocol handler', { err })
 				}
 			}
-		},
-		onToggleMarkupLibrary() {
-			this.loadingMarkupLibrarySettings = true
-
-			this.$store
-				.dispatch('savePreference', {
-					key: 'extraction-library',
-					value: e.target.checked ? 'sml' : 'kitinerary',
-				})
-				.catch((error) => Logger.error('could not save preferences', { error }))
-				.then(() => {
-					this.loadingMarkupLibrarySettings = false
-				})
 		},
 	},
 }

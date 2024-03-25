@@ -254,6 +254,59 @@
 			</article>
 			<MicrosoftAdminOauthSettings :tenant-id="microsoftOauthTenantId" :client-id="microsoftOauthClientId" />
 		</div>
+		<div class="app-description">
+			<h3>
+				{{
+					t(
+						'mail',
+						'Email Markup Extraction'
+					)
+				}}
+			</h3>
+			<article>
+				<p>
+					{{
+						t(
+							'mail',
+							'You can choose which library is used to extract markup data from emails.'
+						)
+					}}
+					<br>
+					{{
+						t(
+							'mail',
+							'Kitinerary will extract Itinerary data from the mail body and attachments.'
+						)
+					}}
+					<br>
+					{{
+						t(
+							'mail',
+							'HTML2JsonLd will extract Markup data from the mail body'
+						)
+					}}
+				</p>
+				<div style="display: flex">
+					<NcCheckboxRadioSwitch :button-variant="true"
+						:checked.sync="markupLibrary"
+						value="kitinerary"
+						name="backend_markup_extraction_radio"
+						type="radio"
+						button-variant-grouped="horizontal">
+						Kitinerary
+					</NcCheckboxRadioSwitch>
+					<NcCheckboxRadioSwitch :button-variant="true"
+						:checked.sync="markupLibrary"
+						value="h2ld"
+						name="backend_markup_extraction_radio"
+						type="radio"
+						button-variant-grouped="horizontal">
+						HTML2JsonLd
+					</NcCheckboxRadioSwitch>
+				</div>
+			</article>
+			<AntiSpamSettings />
+		</div>
 	</SettingsSection>
 </template>
 
