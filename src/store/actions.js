@@ -1503,25 +1503,17 @@ export default {
 	},
 	async sendRecipeToCookbook({ commit }, { recipe }) {
 		return handleHttpAuthErrors(commit, async () => {
-			try {
-				const result = await sendRecipe(recipe)
+			const result = await sendRecipe(recipe)
 
-				return result
-			} catch (e) {
-				throw e
-			}
+			return result
 		})
 	},
 
 	async callLiveUri({ commit }, { liveUri }) {
 		return handleHttpAuthErrors(commit, async () => {
-			try {
-				const result = await updateSchema(liveUri)
+			const result = await updateSchema(liveUri)
 
-				return result
-			} catch (e) {
-				throw e
-			}
+			return result
 		})
 	},
 }

@@ -30,12 +30,12 @@
 
 <script>
 import Jsonld2html from 'jsonld2html-cards'
-import SchemaActionBar from './SchemaActionBar'
+import SchemaActionBar from './SchemaActionBar.vue'
 
 export default {
 	name: 'Schema',
 	components: {
-    	SchemaActionBar,
+		SchemaActionBar,
 	},
 	props: {
 		json: {
@@ -65,7 +65,7 @@ export default {
 		},
 		async updateData(updatedValues) {
 			for (const key in updatedValues) {
-				if (this.data.hasOwnProperty(key)) {
+				if (Object.prototype.hasOwnProperty.call(this.data, key)) {
 					this.data[key] = updatedValues[key]
 				}
 			}
