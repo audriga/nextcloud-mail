@@ -1,3 +1,6 @@
+<!-- eslint-disable n/no-missing-import -->
+<!-- eslint-disable import/no-unresolved -->
+<!-- eslint-disable import/no-unresolved -->
 <!--
  -
  - @copyright Copyright (c) 2023, Gerke Frölje <gerke@audriga.com>
@@ -75,12 +78,12 @@
 
 import { NcActionButton } from '@nextcloud/vue'
 import NcActions from '@nextcloud/vue/dist/Components/NcActions.js'
-import SilverwareForkKnifeIcon from 'vue-material-design-icons/SilverwareForkKnife'
-import CheckIcon from 'vue-material-design-icons/Check'
-import CloseIcon from 'vue-material-design-icons/Close'
-import OpenInNewIcon from 'vue-material-design-icons/OpenInNew'
-import MapMarkerIcon from 'vue-material-design-icons/MapMarker'
-import MapSearchOutlineIcon from 'vue-material-design-icons/MapSearchOutline'
+import SilverwareForkKnifeIcon from 'vue-material-design-icons/SilverwareForkKnife.vue'
+import CheckIcon from 'vue-material-design-icons/Check.vue'
+import CloseIcon from 'vue-material-design-icons/Close.vue'
+import OpenInNewIcon from 'vue-material-design-icons/OpenInNew.vue'
+import MapMarkerIcon from 'vue-material-design-icons/MapMarker.vue'
+import MapSearchOutlineIcon from 'vue-material-design-icons/MapSearchOutline.vue'
 import IconLoading from '@nextcloud/vue/dist/Components/NcLoadingIcon.js'
 
 export default {
@@ -108,10 +111,10 @@ export default {
 			return this.$parent.json['@type']
 		},
 		hasUrlValue() {
-			return this.$parent.json.hasOwnProperty('url')
+			return Object.prototype.hasOwnProperty.call(this.$parent.json, 'url')
 		},
 		hasLiveUri() {
-			return this.$parent.json.hasOwnProperty('liveUri')
+			return Object.prototype.hasOwnProperty.call(this.$parent.json, 'liveUri')
 		},
 	},
 	methods: {
