@@ -23,9 +23,11 @@
 		<div v-if="itineraries.length > 0" class="message-itinerary">
 			<Itinerary :entries="itineraries" :message-id="message.messageId" />
 		</div>
-		<div v-if="hasCurrentUserPrincipalAndCollections && message.scheduling.length > 0" class="message-imip">
-			<Imip
-				v-for="scheduling in message.scheduling"
+		<div v-if="Object.entries(schema).length > 0" class="message-schema">
+			<Schema :json="schema" />
+		</div>
+		<div v-if="message.scheduling.length > 0" class="message-imip">
+			<Imip v-for="scheduling in message.scheduling"
 				:key="scheduling.id"
 				:scheduling="scheduling" />
 		</div>
