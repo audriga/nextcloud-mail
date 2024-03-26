@@ -40,8 +40,6 @@ use OCP\ICacheFactory;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\NullLogger;
 
-use function Amp\Iterator\toArray;
-
 class SchemaServiceTest extends TestCase {
 	/** @var IMAPClientFactory|MockObject */
 	private $imapClientFactory;
