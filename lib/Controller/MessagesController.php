@@ -266,7 +266,7 @@ class MessagesController extends Controller {
 			$client->logout();
 		}
 
-		$extractionLibrary = $this->preferences->getPreference($this->currentUserId, 'extraction-library', 'kitinerary');
+		$extractionLibrary = $this->preferences->getPreference($this->currentUserId, 'extraction-library', 'h2ld');
 
 		if ($extractionLibrary === 'kitinerary') {
 			$itineraries = $this->itineraryService->getCached($account, $mailbox, $message->getUid());

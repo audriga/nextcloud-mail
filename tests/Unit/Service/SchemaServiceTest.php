@@ -34,6 +34,7 @@ use OCA\Mail\Db\Mailbox;
 use OCA\Mail\IMAP\IMAPClientFactory;
 use OCA\Mail\IMAP\MessageMapper;
 use OCA\Mail\Service\SchemaService;
+use OCP\App\IAppManager;
 use OCP\ICache;
 use OCP\ICacheFactory;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -45,6 +46,9 @@ class SchemaServiceTest extends TestCase {
 
 	/** @var MessageMapper|MockObject */
 	private $messageMapper;
+
+	/** @var IAppManager|MockObject */
+	private $appManager;
 
 	private ICache $cache;
 
@@ -61,6 +65,7 @@ class SchemaServiceTest extends TestCase {
 		$this->messageMapper = $this->createMock(MessageMapper::class);
 		$cacheFactory = $this->createMock(ICacheFactory::class);
 		$this->cache = new ArrayCache('schema_test');
+		$this->appManager = $this->createMock(IAppManager::class);
 
 		$cacheFactory->method('createLocal')
 			->willReturn($this->cache);
@@ -69,6 +74,7 @@ class SchemaServiceTest extends TestCase {
 			$this->imapClientFactory,
 			$this->messageMapper,
 			$cacheFactory,
+			$this->appManager,
 			new NullLogger(),
 		);
 
@@ -100,7 +106,9 @@ class SchemaServiceTest extends TestCase {
 			->method('getClient')
 			->with($account)
 			->willReturn($client);
+		
 		$body = '<html><body>hello</body></html>';
+
 		$this->messageMapper->expects($this->once())
 			->method('getHtmlBody')
 			->with($client, 'INBOX', 13)

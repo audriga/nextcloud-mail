@@ -28,6 +28,7 @@ use OCA\Mail\Account;
 use OCA\Mail\Db\Mailbox;
 use OCA\Mail\IMAP\IMAPClientFactory;
 use OCA\Mail\IMAP\MessageMapper;
+use OCP\App\IAppManager;
 use OCP\ICache;
 use OCP\ICacheFactory;
 use Psr\Log\LoggerInterface;
@@ -46,16 +47,21 @@ class SchemaService {
 	/** @var ICache */
 	private $cache;
 
+	/** @var IAppManager */
+	private $appManager;
+
 	/** @var LoggerInterface */
 	private $logger;
 
 	public function __construct(IMAPClientFactory $clientFactory,
 		MessageMapper $messageMapper,
 		ICacheFactory $cacheFactory,
+		IAppManager $appManager,
 		LoggerInterface $logger) {
 		$this->clientFactory = $clientFactory;
 		$this->messageMapper = $messageMapper;
 		$this->cache = $cacheFactory->createLocal(self::CACHE_PREFIX);
+		$this->appManager = $appManager;
 		$this->logger = $logger;
 	}
 
@@ -99,6 +105,32 @@ class SchemaService {
 		$cache_key = $this->buildCacheKey($account, $mailbox, $id);
 		$this->cache->set($cache_key, json_encode($schema), self::CACHE_TTL);
 
-		return $schema;
+		if (is_null($schema)) {
+			return;
+		}
+
+		$result = $schema;
+
+		// For adding actions in the UI, we need to check if the required app is installed.
+		$requiredAppForTypeMap = [
+			"Recipe" => "cookbook"
+			// TODO: Add future dependencies here.
+		];
+
+		$schemaType = $schema->{'@type'};
+
+		if (!array_key_exists($schemaType, $requiredAppForTypeMap)) {
+			return $result;
+		}
+
+		$installedApps = $this->appManager->getInstalledApps();
+
+		if (in_array($requiredAppForTypeMap[$schemaType], $installedApps)) {
+			$result->isRequiredAppInstalled = true;
+		} else {
+			$result->isRequiredAppInstalled = false;
+		}
+
+		return $result;
 	}
 }
