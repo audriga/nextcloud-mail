@@ -27,7 +27,7 @@
 		<NcActions :force-name="true"
 			:secondary="true"
 			:inline="1">
-			<NcActionButton v-if="schemaType === 'Recipe'"
+			<NcActionButton v-if="schemaType === 'Recipe' && isRequiredAppInstalled"
 				:aria-label="t('mail', 'Add Recipe To Cookbook')"
 				@click.prevent="sendRecipeToCookbook()">
 				<template #icon>
@@ -115,6 +115,9 @@ export default {
 		},
 		hasLiveUri() {
 			return Object.prototype.hasOwnProperty.call(this.$parent.json, 'liveUri')
+		},
+		isRequiredAppInstalled() {
+			return this.$parent.isRequiredAppInstalled
 		},
 	},
 	methods: {

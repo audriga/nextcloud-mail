@@ -41,23 +41,32 @@ export default {
 		json: {
 			type: Object,
 			required: false,
+			default: null,
 		},
 		messageId: {
 			type: String,
 			required: false,
+			default: null,
 		},
 	},
 	data() {
 		return {
+			schema: '',
 			html: '',
+			isRequiredAppInstalled: null,
 		}
 	},
 	created() {
+		const { isRequiredAppInstalled, ...otherProperties } = this.json
+
+		this.schema = { ...otherProperties }
+		this.isRequiredAppInstalled = { isRequiredAppInstalled }
+
 		this.getRenderedSchema()
 	},
 	methods: {
 		getRenderedSchema() {
-			const rendered = Jsonld2html.render(this.json)
+			const rendered = Jsonld2html.render(this.schema)
 
 			this.html = rendered
 
@@ -65,12 +74,15 @@ export default {
 		},
 		async updateData(updatedValues) {
 			for (const key in updatedValues) {
-				if (Object.prototype.hasOwnProperty.call(this.data, key)) {
-					this.data[key] = updatedValues[key]
+				if (Object.prototype.hasOwnProperty.call(this.schema, key)) {
+					this.schema[key] = updatedValues[key]
 				}
 			}
 
 			this.getRenderedSchema()
+		},
+		appIsInstalled(appName) {
+			return Object.prototype.hasOwnProperty.call(this.installedApps, appName)
 		},
 	},
 }
