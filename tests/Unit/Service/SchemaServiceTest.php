@@ -40,6 +40,8 @@ use OCP\ICacheFactory;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\NullLogger;
 
+use function Amp\Iterator\toArray;
+
 class SchemaServiceTest extends TestCase {
 	/** @var IMAPClientFactory|MockObject */
 	private $imapClientFactory;
@@ -172,7 +174,7 @@ class SchemaServiceTest extends TestCase {
 		$mailbox = new Mailbox();
 		$mailbox->setName('FooBar');
 
-		$this->cache->set('100_FooBar_1', json_encode(['cacheddatafrompdf']));
+		$this->cache->set('100_FooBar_1', '{"@type":"test"}');
 
 		$result = $this->service->getCached(
 			$account,
@@ -180,6 +182,6 @@ class SchemaServiceTest extends TestCase {
 			1
 		);
 
-		$this->assertEquals(1, count($result));
+		$this->assertEquals(1, sizeof(json_decode(json_encode($result), true)));
 	}
 }
