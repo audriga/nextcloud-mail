@@ -117,7 +117,7 @@ class SchemaService {
 			// TODO: Add future dependencies here.
 		];
 
-		$schemaType = $schema->{'@type'};
+		$schemaType = $schema->{"@type"};
 
 		if (!array_key_exists($schemaType, $requiredAppForTypeMap)) {
 			return $result;
