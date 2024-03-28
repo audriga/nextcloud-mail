@@ -51,7 +51,6 @@ use OCP\AppFramework\Http\ZipResponse;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\Files\Folder;
 use OCP\Files\IMimeTypeDetector;
-use OCP\ICacheFactory;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IURLGenerator;
@@ -137,10 +136,6 @@ class MessagesControllerTest extends TestCase {
 	/** @var MockObject|AiIntegrationsService */
 	private $aiIntegrationsService;
 
-	private ICacheFactory&MockObject $cacheFactory;
-
-	private DelegationService|MockObject $delegationService;
-
 	protected function setUp(): void {
 		parent::setUp();
 
@@ -167,14 +162,6 @@ class MessagesControllerTest extends TestCase {
 		$this->userPreferences = $this->createMock(IUserPreferences::class);
 		$this->snoozeService = $this->createMock(SnoozeService::class);
 		$this->aiIntegrationsService = $this->createMock(AiIntegrationsService::class);
-		$this->cacheFactory = $this->createMock(ICacheFactory::class);
-
-		$this->cacheFactory->method('createDistributed')
-			->willReturn(new NullCache());
-
-		$this->delegationService = $this->createMock(DelegationService::class);
-		$this->delegationService->method('resolveMessageUserId')->willReturn($this->userId);
-		$this->delegationService->method('resolveMailboxUserId')->willReturn($this->userId);
 
 		$timeFactory = $this->createMocK(ITimeFactory::class);
 		$timeFactory->expects($this->any())
@@ -206,8 +193,6 @@ class MessagesControllerTest extends TestCase {
 			$this->userPreferences,
 			$this->snoozeService,
 			$this->aiIntegrationsService,
-			$this->cacheFactory,
-			$this->delegationService,
 		);
 
 		$this->account = $this->createMock(Account::class);

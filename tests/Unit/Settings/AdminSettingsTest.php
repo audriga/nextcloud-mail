@@ -62,6 +62,11 @@ class AdminSettingsTest extends TestCase {
 				],
 				[
 					Application::APP_ID,
+					'markup_library_used_for_extraction',
+					$this->anything()
+				],
+				[
+					Application::APP_ID,
 					'llm_processing',
 					$this->anything()
 				],
