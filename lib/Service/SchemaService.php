@@ -125,6 +125,8 @@ class SchemaService {
 
 		$installedApps = $this->appManager->getInstalledApps();
 
+		// Schema Object is being hijacked here. This is reverted thorugh object
+		// decomposition in the frontend.
 		if (in_array($requiredAppForTypeMap[$schemaType], $installedApps)) {
 			$result->isRequiredAppInstalled = true;
 		} else {
