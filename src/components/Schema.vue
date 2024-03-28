@@ -57,6 +57,8 @@ export default {
 		}
 	},
 	created() {
+		// Decompose the schema object to see whether the app required
+		// for button rendering is installed on the instance.
 		const { isRequiredAppInstalled, ...otherProperties } = this.json
 
 		this.schema = { ...otherProperties }
