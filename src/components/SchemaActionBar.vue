@@ -54,12 +54,12 @@
 				Refresh Live Location
 			</NcActionButton>
 			<NcActionButton v-if="schemaType === 'Place'"
-				:aria-label="t('mail', 'Open in Google Maps')"
-				@click.prevent="openLocationInGoogleMaps()">
+				:aria-label="t('mail', 'Open in OpenStreetMap')"
+				@click.prevent="openLocationInOSM()">
 				<template #icon>
 					<MapSearchOutlineIcon :size="20" />
 				</template>
-				Open in Google Maps
+				Open in OpenStreetMap
 			</NcActionButton>
 			<NcActionButton v-if="hasUrlValue"
 				:aria-label="t('mail','Open Source URL')"
@@ -162,11 +162,11 @@ export default {
 			}
 
 		},
-		openLocationInGoogleMaps() {
+		openLocationInOSM() {
 			const lat = this.$parent.json.geo.latitude
 			const lon = this.$parent.json.geo.longitude
 
-			const url = 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lon
+			const url = 'https://www.openstreetmap.org/#map=16/' + lat + '/' + lon
 
 			window.open(url, '_blank').focus()
 		},
