@@ -351,6 +351,11 @@ return [
 			'verb' => 'PUT'
 		],
 		[
+			'name' => 'settings#setMarkupExtractionLibrary',
+			'url' => '/api/settings/markuplibrary',
+			'verb' => 'PUT'
+		],
+		[
 			'name' => 'trusted_senders#setTrusted',
 			'url' => '/api/trustedsenders/{email}',
 			'verb' => 'PUT'

@@ -289,19 +289,21 @@
 				<div style="display: flex">
 					<NcCheckboxRadioSwitch :button-variant="true"
 						:checked.sync="markupLibrary"
-						value="kitinerary"
-						name="backend_markup_extraction_radio"
-						type="radio"
-						button-variant-grouped="horizontal">
-						Kitinerary
-					</NcCheckboxRadioSwitch>
-					<NcCheckboxRadioSwitch :button-variant="true"
-						:checked.sync="markupLibrary"
 						value="h2ld"
 						name="backend_markup_extraction_radio"
 						type="radio"
-						button-variant-grouped="horizontal">
+						button-variant-grouped="horizontal"
+						@update:checked="updateMarkupLibrary">
 						HTML2JsonLd
+					</NcCheckboxRadioSwitch>
+					<NcCheckboxRadioSwitch :button-variant="true"
+						:checked.sync="markupLibrary"
+						value="kitinerary"
+						name="backend_markup_extraction_radio"
+						type="radio"
+						button-variant-grouped="horizontal"
+						@update:checked="updateMarkupLibrary">
+						Kitinerary
 					</NcCheckboxRadioSwitch>
 				</div>
 			</article>
@@ -331,6 +333,7 @@ import {
 	updateAllowNewMailAccounts,
 	updateLlmEnabled,
 	updateEnabledSmartReply,
+	updateMarkupLibrary,
 } from '../../service/SettingsService.js'
 
 const googleOauthClientId = loadState('mail', 'google_oauth_client_id', null) ?? undefined
@@ -393,6 +396,7 @@ export default {
 			isLlmSummaryConfigured: loadState('mail', 'enabled_llm_summary_backend'),
 			isLlmEnabled: loadState('mail', 'llm_processing', true),
 			isLlmFreePromptConfigured: loadState('mail', 'enabled_llm_free_prompt_backend'),
+			markupLibrary: loadState('mail', 'markup_library_used_for_extraction'),
 
 		}
 	},
@@ -452,6 +456,9 @@ export default {
 		},
 		async updateEnabledSmartReply(checked) {
 			await updateEnabledSmartReply(checked)
+		},
+		async updateMarkupLibrary(choice) {
+			await updateMarkupLibrary(choice)
 		},
 	},
 }

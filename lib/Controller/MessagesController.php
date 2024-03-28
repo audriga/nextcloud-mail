@@ -66,6 +66,7 @@ use OCP\Files\Folder;
 use OCP\Files\GenericFileException;
 use OCP\Files\IMimeTypeDetector;
 use OCP\Files\NotPermittedException;
+use OCP\IConfig;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IURLGenerator;
@@ -94,6 +95,7 @@ class MessagesController extends Controller {
 	private IUserPreferences $preferences;
 	private SnoozeService $snoozeService;
 	private AiIntegrationsService $aiIntegrationService;
+	private IConfig $config;
 
 	public function __construct(string $appName,
 		IRequest $request,
@@ -116,7 +118,8 @@ class MessagesController extends Controller {
 		IDkimService $dkimService,
 		IUserPreferences $preferences,
 		SnoozeService $snoozeService,
-		AiIntegrationsService $aiIntegrationService) {
+		AiIntegrationsService $aiIntegrationService,
+		IConfig $config) {
 		parent::__construct($appName, $request);
 		$this->accountService = $accountService;
 		$this->mailManager = $mailManager;
@@ -138,6 +141,7 @@ class MessagesController extends Controller {
 		$this->preferences = $preferences;
 		$this->snoozeService = $snoozeService;
 		$this->aiIntegrationService = $aiIntegrationService;
+		$this->config = $config;
 	}
 
 	/**
@@ -242,7 +246,7 @@ class MessagesController extends Controller {
 			$client->logout();
 		}
 
-		$extractionLibrary = $this->preferences->getPreference($this->currentUserId, 'extraction-library', 'h2ld');
+		$extractionLibrary = $this->config->getAppValue('mail', 'markup_library_used_for_extraction', 'h2ld');
 
 		if ($extractionLibrary === 'kitinerary') {
 			$itineraries = $this->itineraryService->getCached($account, $mailbox, $message->getUid());

@@ -62,6 +62,7 @@ use OCP\AppFramework\Http\ZipResponse;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\Files\Folder;
 use OCP\Files\IMimeTypeDetector;
+use OCP\IConfig;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IURLGenerator;
@@ -147,6 +148,9 @@ class MessagesControllerTest extends TestCase {
 	/** @var MockObject|AiIntegrationsService */
 	private $aiIntegrationsService;
 
+	/** @var MockObject|IConfig */
+	private $config;
+
 	protected function setUp(): void {
 		parent::setUp();
 
@@ -173,6 +177,7 @@ class MessagesControllerTest extends TestCase {
 		$this->userPreferences = $this->createMock(IUserPreferences::class);
 		$this->snoozeService = $this->createMock(SnoozeService::class);
 		$this->aiIntegrationsService = $this->createMock(AiIntegrationsService::class);
+		$this->config = $this->createMock(IConfig::class);
 
 		$timeFactory = $this->createMocK(ITimeFactory::class);
 		$timeFactory->expects($this->any())
@@ -206,6 +211,7 @@ class MessagesControllerTest extends TestCase {
 			$this->userPreferences,
 			$this->snoozeService,
 			$this->aiIntegrationsService,
+			$this->config
 		);
 
 		$this->account = $this->createMock(Account::class);
