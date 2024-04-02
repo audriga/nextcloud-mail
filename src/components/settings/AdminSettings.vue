@@ -249,13 +249,42 @@
 			<h3>{{ t('mail', 'User Interface Preference Defaults') }}</h3>
 			<article>
 				<p>
-					{{ t('mail', 'These settings are used to pre-configure the user interface preferences they can be overridden by the user in the mail settings') }}
-				</p>
-			</article>
-			<br>
-			<article>
-				<p>
-					{{ t('mail', 'Message View Mode') }}
+					{{
+						t(
+							'mail',
+							'(Experimental) You can choose which library is used to extract markup data from emails.'
+						)
+					}}
+					<br>
+					<br>
+					{{
+						t(
+							'mail',
+							'Kitinerary will extract Itinerary data from the mail body and attachments.'
+						)
+					}}
+					<br>
+					{{
+						t(
+							'mail',
+							'This will include reservations for flights, trains or events.'
+						)
+					}}
+					<br>
+					<br>
+					{{
+						t(
+							'mail',
+							'HTML2JsonLd will extract Markup data from the mail body.'
+						)
+					}}
+					<br>
+					{{
+						t(
+							'mail',
+							'This will include any type of markup data like json+ld or microdata.'
+						)
+					}}
 				</p>
 				<div style="display: flex">
 					<NcCheckboxRadioSwitch :button-variant="true"
