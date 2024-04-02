@@ -268,9 +268,10 @@
 					{{
 						t(
 							'mail',
-							'You can choose which library is used to extract markup data from emails.'
+							'(Experimental) You can choose which library is used to extract markup data from emails.'
 						)
 					}}
+					<br>
 					<br>
 					{{
 						t(
@@ -282,7 +283,22 @@
 					{{
 						t(
 							'mail',
-							'HTML2JsonLd will extract Markup data from the mail body'
+							'This will include reservations for flights, trains or events.'
+						)
+					}}
+					<br>
+					<br>
+					{{
+						t(
+							'mail',
+							'HTML2JsonLd will extract Markup data from the mail body.'
+						)
+					}}
+					<br>
+					{{
+						t(
+							'mail',
+							'This will include any type of markup data like json+ld or microdata.'
 						)
 					}}
 				</p>
