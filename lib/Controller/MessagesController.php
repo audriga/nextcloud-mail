@@ -270,7 +270,7 @@ class MessagesController extends Controller {
 
 		if ($extractionLibrary === 'kitinerary') {
 			$itineraries = $this->itineraryService->getCached($account, $mailbox, $message->getUid());
-			if ($itineraries) {
+			if ($itineraries && !empty($itineraries)) {
 				$json['itineraries'] = $itineraries;
 			}
 		} else {
@@ -319,6 +319,10 @@ class MessagesController extends Controller {
 	 */
 	#[TrapError]
 	public function getItineraries(int $id): JSONResponse {
+		if ($this->config->getAppValue('mail', 'markup_library_used_for_extraction', 'h2ld') !== 'kitinerary') {
+			return new JSONResponse([], Http::STATUS_NOT_ACCEPTABLE);
+		}
+
 		if ($this->currentUserId === null) {
 			return new JSONResponse([], Http::STATUS_UNAUTHORIZED);
 		}
