@@ -25,6 +25,9 @@
 		<div class="schema-action-bar">
 			<SchemaActionBar @update-from-live-uri="updateData" />
 		</div>
+		<div class="full-schema">
+			{{ json }}
+		</div>
 	</div>
 </template>
 
@@ -39,7 +42,7 @@ export default {
 	},
 	props: {
 		json: {
-			type: Object,
+			type: [Object, Array],
 			required: false,
 			default: null,
 		},
@@ -68,7 +71,7 @@ export default {
 	},
 	methods: {
 		getRenderedSchema() {
-			const rendered = Jsonld2html.render(this.schema)
+			const rendered = Jsonld2html.render(this.json)
 
 			this.html = rendered
 
@@ -91,6 +94,7 @@ export default {
 
 </script>
 <style scoped>
+/* Default card styling */
 .schema {
 
 	/* Box surrounding the displayed card and posible actions. */
@@ -109,21 +113,15 @@ export default {
 .full-schema {
 
 	/* Useful for debugging the component. */
-	display: none;
 	font-size: x-small;
 	opacity: 0.4;
 	font-weight: lighter;
 
 }
 
-.schema >>> .smlCard {
+.schema >>> .ld-card {
 
 	max-width: 600px;
-
-	display: flex;
-	flex-direction: column;
-
-	gap: 5px;
 
 	/* round corners*/
 	border: 2px solid var(--color-border);
@@ -136,43 +134,37 @@ export default {
 
 }
 
-.schema >>> .smlCard .header {
+.schema >>> .ld-card__row {
 
-	/* create a bottom border from left to right */
-	border-block-end: 2px solid var(--color-border);
-	margin: -10px -20px 0px -20px;
+    /*Layout Settings*/
 
-	padding-bottom: 10px;
+    /* declaring the card class to a flex-contatiner */
+    display: flex;
 
-	/* add spacing before text */
-	text-indent: 20px;
+    /* setting the alignment of the childs to vertical row layout*/
+    flex-direction: row;
 
-	font-size: 20px;
-	font-weight: bold;
+    /* the items in the container are able to wrap, works like a line break */
+    flex-wrap: nowrap;
 
-	color: var(--color-main-text);
+    /* align the items horizontally in the cointainer to left side (flex-start) */
+    justify-content: flex-start;
 
-}
+    /* align the items vertically in the center */
+    align-items: flex-start;
 
-.schema >>> .smlCardRow {
+    /* positioning in a html document*/
+    position: relative;
 
-	/*Layout Settings*/
+    /* maximal absoulute card width */
+    max-width: 600px;
 
-	/* declaring the card class to a flex-contatiner */
-	display: flex;
-
-	/* setting the alignment of the childs to vertical row layout*/
-	flex-direction: row;
-
-	/* the items in the container are able to wrap, works like a line break */
-	flex-wrap: nowrap;
-
-	/* align the items horizontally in the cointainer to left side (flex-start) */
-	justify-content: flex-start;
+    /* maximal absolute card height */
+    max-height: 150px;
 
 }
 
-.schema >>> .smlCardRow .text_column {
+.schema >>> .ld-card__row .text_column {
 
 	display: flex;
 
@@ -201,7 +193,7 @@ export default {
 
 }
 
-.schema >>> .smlCardRow .card_title {
+.schema >>> .ld-card__row .title {
 
 	margin: 4px 0px;
 
@@ -219,7 +211,7 @@ export default {
 
 }
 
-.schema >>> .smlCardRow .card_content {
+.schema >>> .ld-card__row .content {
 
 	margin-top: 4px;
 	margin-bottom: 4px;
@@ -236,7 +228,7 @@ export default {
 
 }
 
-.schema >>> .smlCardRow .image_column {
+.schema >>> .ld-card__row .image_column {
 
 	/* declaring the card class to a flex-contatiner */
 	display: flex;
@@ -256,7 +248,7 @@ export default {
 
 }
 
-.schema >>> .smlCardRow img {
+.schema >>> .ld-card__row img {
 
 	display: block;
 	max-width: 100px;
@@ -269,4 +261,125 @@ export default {
 	display: none;
 }
 
+.schema >>> ld-card__header {
+	display: none;
+}
+
+/* Flight Reservation Styling */
+.schema >>> .tab {
+
+display: flex;
+
+flex-direction: row;
+
+justify-content: flex-start;
+
+overflow: hidden;
+
+background-color: #f1f1f1;
+
+}
+
+.schmea >>> .tab button {
+
+font-size: 10px;
+border-radius: 0.25rem;
+
+background-color: inherit;
+float: left;
+border: none;
+outline: none;
+cursor: pointer;
+padding: 4px 14px;
+transition: 0.3s;
+margin: 0;
+}
+
+.schema >>> .tab button:hover {
+    background-color: #ddd;
+}
+
+.schema >>> .tab button.active {
+    background-color: #ccc;
+}
+
+.schema >>> .ld-card .ld-card__row .smlCardFlightReservationTextColumn .tabcontent {
+    display: none;
+    padding: 3px 2px;
+    flex-direction: row;
+
+    /* the items in the container are able to wrap, works like a line break */
+    flex-wrap: nowrap;
+
+    /* align the items horizontally in the cointainer to left side (flex-start) */
+    justify-content: space-evenly;
+
+    /* align the items vertically in the center */
+    align-items: center;
+
+    /* initial/standard size of the text column (shrinkage still possible)*/
+    flex-basis: 100%;
+
+    /* minimum height , same as the picture box*/
+    min-height: 150px;
+    max-height: 150px;
+
+    max-width: inherit;
+
+}
+
+.schema >>> .ld-card__row .smlCardFlightReservationTextColumn {
+
+display: flex;
+
+/* setting the alignment of the childs to vertical row layout*/
+flex-direction: row;
+
+/* the items in the container are able to wrap, works like a line break */
+flex-wrap: nowrap;
+
+/* align the items horizontally in the cointainer to left side (flex-start) */
+justify-content: space-evenly;
+
+/* align the items vertically in the center */
+align-items: center;
+
+/* initial/standard size of the text column (shrinkage still possible)*/
+flex-basis: 100%;
+
+/* minimum height , same as the picture box*/
+min-height: 150px;
+max-height: 150px;
+
+/* this property is needed to make the truncating working for the child elements*/
+min-width: 0;
+
+}
+
+.schema >>> .smlCardFlightReservationTextColumn .flightReservationFirstColumn{
+    max-width: 180px;
+    overflow-wrap: break-word;
+    padding: 10px;
+    text-align: right;
+}
+
+.schema >>> .smlCardFlightReservationTextColumn .flightReservationMidColumn{
+
+display: flex;
+flex-direction: column;
+
+overflow-wrap: break-word;
+padding: 10px;
+/* align the items horizontally in the cointainer to left side (flex-start) */
+justify-content: center;
+
+/* align the items vertically in the center */
+align-items: center;
+}
+
+.schema >>> .smlCardFlightReservationTextColumn .flightReservationLastColumn{
+    max-width: 180px;
+    overflow-wrap: break-word;
+    padding: 10px;
+}
 </style>
