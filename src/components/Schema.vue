@@ -113,6 +113,7 @@ export default {
 .full-schema {
 
 	/* Useful for debugging the component. */
+	display: none;
 	font-size: x-small;
 	opacity: 0.4;
 	font-weight: lighter;
@@ -162,6 +163,8 @@ export default {
     /* maximal absolute card height */
     max-height: 150px;
 
+	gap: 20px;
+
 }
 
 .schema >>> .ld-card__row .text_column {
@@ -204,9 +207,7 @@ export default {
 	color: var(--color-main-text);
 
 	/* settings for truncating single line text */
-    max-width: 100%;
     text-overflow: ellipsis;
-    white-space: nowrap;
     overflow-x: auto;
 
 }
