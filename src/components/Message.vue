@@ -86,7 +86,6 @@ import { NcButton } from '@nextcloud/vue'
 
 import { html, plain } from '../util/text.js'
 import { isPgpgMessage } from '../crypto/pgp.js'
-import Itinerary from './Itinerary.vue'
 import Schema from './Schema.vue'
 import MessageAttachments from './MessageAttachments.vue'
 import MessageEncryptedBody from './MessageEncryptedBody.vue'
@@ -99,7 +98,6 @@ import ReplyIcon from 'vue-material-design-icons/Reply.vue'
 export default {
 	name: 'Message',
 	components: {
-		Itinerary,
 		Schema,
 		MessageAttachments,
 		MessageEncryptedBody,
