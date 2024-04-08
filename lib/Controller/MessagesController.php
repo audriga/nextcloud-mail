@@ -250,7 +250,7 @@ class MessagesController extends Controller {
 
 		if ($extractionLibrary === 'kitinerary') {
 			$itineraries = $this->itineraryService->getCached($account, $mailbox, $message->getUid());
-			if ($itineraries && !empty($itineraries)) {
+			if ($itineraries) {
 				$json['itineraries'] = $itineraries;
 			}
 		} else {
