@@ -277,23 +277,12 @@ justify-content: flex-start;
 
 overflow: hidden;
 
-background-color: #f1f1f1;
-
 }
 
 .schmea >>> .tab button {
 
-font-size: 10px;
-border-radius: 0.25rem;
+	border-radius: 20px 20px 0px 0px;
 
-background-color: inherit;
-float: left;
-border: none;
-outline: none;
-cursor: pointer;
-padding: 4px 14px;
-transition: 0.3s;
-margin: 0;
 }
 
 .schema >>> .tab button:hover {
@@ -301,7 +290,7 @@ margin: 0;
 }
 
 .schema >>> .tab button.active {
-    background-color: #ccc;
+    background-color: var(--color-main-background);
 }
 
 .schema >>> .ld-card .ld-card__row .smlCardFlightReservationTextColumn .tabcontent {
