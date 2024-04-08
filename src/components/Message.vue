@@ -34,10 +34,10 @@
 			</p>
 		</div>
 		<div v-if="itineraries.length > 0" class="message-itinerary">
-			<Itinerary :entries="itineraries" :message-id="message.messageId" />
+			<Schema :json="itineraries" :message-id="message.messageId" />
 		</div>
 		<div v-if="Object.entries(schema).length > 0" class="message-schema">
-			<Schema :json="schema" />
+			<Schema :json="schema" :message-id="message.messageId" />
 		</div>
 		<div v-if="message.scheduling.length > 0" class="message-imip">
 			<Imip v-for="scheduling in message.scheduling"
@@ -143,7 +143,7 @@ export default {
 			return isPgpgMessage(this.message.hasHtmlBody ? html(this.message.body) : plain(this.message.body))
 		},
 		itineraries() {
-			return this.message.itineraries ?? []
+			return this.message.itineraries ?? {}
 		},
 		schema() {
 			return this.message.schema ?? {}
