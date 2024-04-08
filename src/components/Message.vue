@@ -112,7 +112,6 @@ import { html, plain } from '../util/text.js'
 export default {
 	name: 'Message',
 	components: {
-		Itinerary,
 		IconInfo,
 		Schema,
 		MessageAttachments,
