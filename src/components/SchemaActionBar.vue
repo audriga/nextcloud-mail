@@ -171,7 +171,7 @@ export default {
 			window.open(url, '_blank').focus()
 		},
 		openUrlInNewWindow() {
-			window.open(this.json.url, '_blank').focus()
+			window.open(this.$parent.json.url, '_blank').focus()
 		},
 	},
 }
