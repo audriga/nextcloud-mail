@@ -614,21 +614,6 @@ export default {
 				this.smartReplies = await smartReply(this.envelope.databaseId)
 			}
 		},
-		async fetchItineraries() {
-			// Sanity check before actually making the request
-			if (!this.message.hasHtmlBody && this.message.attachments.length === 0) {
-				return
-			}
-
-			logger.debug(`Fetching itineraries for message ${this.envelope.databaseId}`)
-
-			try {
-				const itineraries = await this.$store.dispatch('fetchItineraries', this.envelope.databaseId)
-				logger.debug(`Itineraries of message ${this.envelope.databaseId} fetched`, { itineraries })
-			} catch (error) {
-				logger.error(`Could not fetch itineraries of message ${this.envelope.databaseId}`, { error })
-			}
-		},
 		async fetchDkim() {
 			if (this.message.hasDkimSignature === false) {
 				return

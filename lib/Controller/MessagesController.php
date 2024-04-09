@@ -249,14 +249,14 @@ class MessagesController extends Controller {
 		$extractionLibrary = $this->config->getAppValue('mail', 'markup_library_used_for_extraction', 'h2ld');
 
 		if ($extractionLibrary === 'kitinerary') {
-			$itineraries = $this->itineraryService->getCached($account, $mailbox, $message->getUid());
+			$itineraries = $this->itineraryService->extract($account, $mailbox, $message->getUid());
 			if ($itineraries) {
-				$json['itineraries'] = $itineraries;
+				$json['schema'] = $itineraries;
 			}
 		} else {
 			$schema = $this->schemaService->extract($account, $mailbox, $message->getUid());
 			if ($schema) {
-				$json["schema"] = $schema;
+				$json['schema'] = $schema;
 			}
 		}
 
