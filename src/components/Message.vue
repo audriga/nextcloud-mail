@@ -20,9 +20,6 @@
 				{{ t('mail', 'Warning: The S/MIME signature of this message is  unverified. The sender might be impersonating someone!') }}
 			</p>
 		</div>
-		<div v-if="itineraries.length > 0" class="message-itinerary">
-			<Schema :json="itineraries" :message-id="message.messageId" />
-		</div>
 		<div v-if="Object.entries(schema).length > 0" class="message-schema">
 			<Schema :json="schema" :message-id="message.messageId" />
 		</div>
