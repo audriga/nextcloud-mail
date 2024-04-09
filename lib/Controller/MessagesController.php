@@ -303,6 +303,7 @@ class MessagesController extends Controller {
 	 */
 	#[TrapError]
 	public function getItineraries(int $id): JSONResponse {
+		// TODO: If removing this ajax call is ok, remove this method.
 		if ($this->config->getAppValue('mail', 'markup_library_used_for_extraction', 'h2ld') !== 'kitinerary') {
 			return new JSONResponse([], Http::STATUS_NOT_ACCEPTABLE);
 		}

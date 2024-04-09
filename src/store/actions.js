@@ -1107,6 +1107,7 @@ export default {
 		})
 	},
 	async fetchItineraries({ commit }, id) {
+		// TODO: If removing this ajax call is ok, remove this method.
 		return handleHttpAuthErrors(commit, async () => {
 			const itineraries = await fetchMessageItineraries(id)
 			commit('addMessageItineraries', {

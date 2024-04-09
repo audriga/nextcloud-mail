@@ -182,6 +182,7 @@ export async function fetchMessage(id) {
 }
 
 export async function fetchMessageItineraries(id) {
+	// TODO: If removing this ajax call is ok, remove this method.
 	const url = generateUrl('/apps/mail/api/messages/{id}/itineraries', {
 		id,
 	})
