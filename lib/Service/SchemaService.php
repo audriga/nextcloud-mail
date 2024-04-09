@@ -71,6 +71,7 @@ class SchemaService {
 
 	public function getCached(Account $account, Mailbox $mailbox, int $id) {
 		if ($cached = ($this->cache->get($this->buildCacheKey($account, $mailbox, $id)))) {
+			$this->logger->debug('Loading schema entries from cache');
 			return json_decode($cached);
 		}
 
