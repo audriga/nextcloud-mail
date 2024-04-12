@@ -72,7 +72,7 @@ export default {
 	methods: {
 		getRenderedSchema() {
 
-			if (Array.isArray(this.json) && this.json.length == 1) {
+			if (Array.isArray(this.json) && this.json.length === 1) {
 				this.html = Jsonld2html.render(structuredClone(this.json)[0])
 			}
 
