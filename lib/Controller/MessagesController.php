@@ -250,7 +250,9 @@ class MessagesController extends Controller {
 
 		if ($extractionLibrary === 'kitinerary') {
 			$itineraries = $this->itineraryService->extract($account, $mailbox, $message->getUid());
-			if (json_encode($itineraries) != '[]') {
+			// After setting the above method to extract, $itineraries is always true, so the check
+			// below will cause psalm composer run psalm to complain in the GitHub CI jobs.
+			if ($itineraries) {
 				$json['schema'] = $itineraries;
 			}
 		} else {

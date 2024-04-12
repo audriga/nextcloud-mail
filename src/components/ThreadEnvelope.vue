@@ -600,10 +600,6 @@ export default {
 				logger.error('Could not fetch message', { error })
 			}
 
-			// Fetch itineraries if they haven't been included in the message data
-			if (this.message && !this.message.itineraries) {
-				this.fetchItineraries()
-			}
 			// Fetch dkim
 			if (this.message && this.message.dkimValid === undefined) {
 				this.fetchDkim()
