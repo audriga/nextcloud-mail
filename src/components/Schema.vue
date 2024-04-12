@@ -71,7 +71,7 @@ export default {
 	},
 	methods: {
 		getRenderedSchema() {
-			const rendered = Jsonld2html.render(this.json)
+			const rendered = Jsonld2html.render(structuredClone(this.json))
 
 			this.html = rendered
 
