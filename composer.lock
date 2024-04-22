@@ -626,16 +626,17 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/audriga/html2jsonld-php.git",
-                "reference": "b84e33343c42db26e7e70e3753f2caa2fead6c70"
+                "reference": "9e4321adae9e877e0da296b16a3261ceb96bfb9c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/audriga/html2jsonld-php/zipball/b84e33343c42db26e7e70e3753f2caa2fead6c70",
-                "reference": "b84e33343c42db26e7e70e3753f2caa2fead6c70",
+                "url": "https://api.github.com/repos/audriga/html2jsonld-php/zipball/9e4321adae9e877e0da296b16a3261ceb96bfb9c",
+                "reference": "9e4321adae9e877e0da296b16a3261ceb96bfb9c",
                 "shasum": ""
             },
             "require": {
-                "brick/structured-data": "^0.1.1"
+                "brick/structured-data": "^0.1.1",
+                "psr/log": ">=1.0"
             },
             "require-dev": {
                 "phpunit/phpunit": "^10.3",
@@ -668,7 +669,7 @@
                 "source": "https://github.com/audriga/html2jsonld-php/tree/main",
                 "issues": "https://github.com/audriga/html2jsonld-php/issues"
             },
-            "time": "2024-02-07T14:14:11+00:00"
+            "time": "2024-04-22T12:01:11+00:00"
         },
         {
             "name": "bamarni/composer-bin-plugin",
@@ -4516,5 +4517,5 @@
     "platform-overrides": {
         "php": "8.0"
     },
-    "plugin-api-version": "2.3.0"
+    "plugin-api-version": "2.6.0"
 }
