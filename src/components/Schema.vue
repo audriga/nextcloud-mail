@@ -73,10 +73,10 @@ export default {
 		getRenderedSchema() {
 
 			if (Array.isArray(this.json) && this.json.length === 1) {
-				this.html = Jsonld2html.render(structuredClone(this.json)[0])
+				this.html = Jsonld2html.render(this.json[0], false)
 			}
 
-			const rendered = Jsonld2html.render(structuredClone(this.json))
+			const rendered = Jsonld2html.render(this.json, false)
 
 			this.html = rendered
 
