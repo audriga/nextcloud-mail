@@ -94,6 +94,12 @@ class AdminSettings implements ISettings {
 
 		$this->initialStateService->provideInitialState(
 			Application::APP_ID,
+			'markup_library_used_for_extraction',
+			$this->config->getAppValue('mail', 'markup_library_used_for_extraction', 'h2ld')
+		);
+
+		$this->initialStateService->provideInitialState(
+			Application::APP_ID,
 			'llm_processing',
 			$this->config->getAppValue('mail', 'llm_processing', 'no') === 'yes'
 		);

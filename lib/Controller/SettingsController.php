@@ -130,4 +130,9 @@ class SettingsController extends Controller {
 		return new JSONResponse([]);
 	}
 
+	public function setMarkupExtractionLibrary(string $value): JSONResponse {
+		$this->config->setAppValue('mail', 'markup_library_used_for_extraction', $value);
+		return new JSONResponse([]);
+	}
+
 }

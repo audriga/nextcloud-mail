@@ -33,8 +33,8 @@
 				{{ t('mail', 'Warning: The S/MIME signature of this message is  unverified. The sender might be impersonating someone!') }}
 			</p>
 		</div>
-		<div v-if="itineraries.length > 0" class="message-itinerary">
-			<Itinerary :entries="itineraries" :message-id="message.messageId" />
+		<div v-if="Object.entries(schema).length > 0" class="message-schema">
+			<Schema :json="schema" :message-id="message.messageId" />
 		</div>
 		<div v-if="message.scheduling.length > 0" class="message-imip">
 			<Imip v-for="scheduling in message.scheduling"
@@ -71,7 +71,7 @@
 				<template #icon>
 					<ReplyIcon />
 				</template>
-				{{t('mail','Reply')}}
+				{{ t('mail','Reply') }}
 			</NcButton>
 		</div>
 	</div>
@@ -83,7 +83,7 @@ import { NcButton } from '@nextcloud/vue'
 
 import { html, plain } from '../util/text.js'
 import { isPgpgMessage } from '../crypto/pgp.js'
-import Itinerary from './Itinerary.vue'
+import Schema from './Schema.vue'
 import MessageAttachments from './MessageAttachments.vue'
 import MessageEncryptedBody from './MessageEncryptedBody.vue'
 import MessageHTMLBody from './MessageHTMLBody.vue'
@@ -95,7 +95,7 @@ import ReplyIcon from 'vue-material-design-icons/Reply.vue'
 export default {
 	name: 'Message',
 	components: {
-		Itinerary,
+		Schema,
 		MessageAttachments,
 		MessageEncryptedBody,
 		MessageHTMLBody,
@@ -137,8 +137,8 @@ export default {
 		isEncrypted() {
 			return isPgpgMessage(this.message.hasHtmlBody ? html(this.message.body) : plain(this.message.body))
 		},
-		itineraries() {
-			return this.message.itineraries ?? []
+		schema() {
+			return this.message.schema ?? {}
 		},
 	},
 	methods: {

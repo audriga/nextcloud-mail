@@ -51,6 +51,7 @@ use OCA\Mail\Service\AccountService;
 use OCA\Mail\Service\AiIntegrations\AiIntegrationsService;
 use OCA\Mail\Service\ItineraryService;
 use OCA\Mail\Service\MailManager;
+use OCA\Mail\Service\SchemaService;
 use OCA\Mail\Service\SmimeService;
 use OCA\Mail\Service\SnoozeService;
 use OCP\AppFramework\Db\DoesNotExistException;
@@ -61,6 +62,7 @@ use OCP\AppFramework\Http\ZipResponse;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\Files\Folder;
 use OCP\Files\IMimeTypeDetector;
+use OCP\IConfig;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IURLGenerator;
@@ -86,6 +88,9 @@ class MessagesControllerTest extends TestCase {
 
 	/** @var ItineraryService|MockObject */
 	private $itineraryService;
+
+	/** @var SchemaService|MockObject */
+	private $schemaService;
 
 	/** @var string */
 	private $userId;
@@ -143,6 +148,9 @@ class MessagesControllerTest extends TestCase {
 	/** @var MockObject|AiIntegrationsService */
 	private $aiIntegrationsService;
 
+	/** @var MockObject|IConfig */
+	private $config;
+
 	protected function setUp(): void {
 		parent::setUp();
 
@@ -152,6 +160,7 @@ class MessagesControllerTest extends TestCase {
 		$this->mailManager = $this->createMock(IMailManager::class);
 		$this->mailSearch = $this->createMock(IMailSearch::class);
 		$this->itineraryService = $this->createMock(ItineraryService::class);
+		$this->schemaService = $this->createMock(SchemaService::class);
 		$this->userId = 'john';
 		$this->userFolder = $this->createMock(Folder::class);
 		$this->request = $this->createMock(Request::class);
@@ -168,6 +177,7 @@ class MessagesControllerTest extends TestCase {
 		$this->userPreferences = $this->createMock(IUserPreferences::class);
 		$this->snoozeService = $this->createMock(SnoozeService::class);
 		$this->aiIntegrationsService = $this->createMock(AiIntegrationsService::class);
+		$this->config = $this->createMock(IConfig::class);
 
 		$timeFactory = $this->createMocK(ITimeFactory::class);
 		$timeFactory->expects($this->any())
@@ -185,6 +195,7 @@ class MessagesControllerTest extends TestCase {
 			$this->mailManager,
 			$this->mailSearch,
 			$this->itineraryService,
+			$this->schemaService,
 			$this->userId,
 			$this->userFolder,
 			$this->logger,
@@ -200,6 +211,7 @@ class MessagesControllerTest extends TestCase {
 			$this->userPreferences,
 			$this->snoozeService,
 			$this->aiIntegrationsService,
+			$this->config
 		);
 
 		$this->account = $this->createMock(Account::class);

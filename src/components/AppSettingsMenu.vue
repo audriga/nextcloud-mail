@@ -258,6 +258,9 @@ export default {
 		useBottomReplies() {
 			return this.$store.getters.getPreference('reply-mode', 'top') === 'bottom'
 		},
+		useSmlLibrary() {
+			return this.$store.getters.getPreference('extraction-library', 'kitinerary') === 'sml'
+		},
 		useExternalAvatars() {
 			return this.$store.getters.getPreference('external-avatars', 'true') === 'true'
 		},

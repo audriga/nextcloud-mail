@@ -254,6 +254,77 @@
 			</article>
 			<MicrosoftAdminOauthSettings :tenant-id="microsoftOauthTenantId" :client-id="microsoftOauthClientId" />
 		</div>
+		<div class="app-description">
+			<h3>
+				{{
+					t(
+						'mail',
+						'Email Markup Extraction'
+					)
+				}}
+			</h3>
+			<article>
+				<p>
+					{{
+						t(
+							'mail',
+							'(Experimental) You can choose which library is used to extract markup data from emails.'
+						)
+					}}
+					<br>
+					<br>
+					{{
+						t(
+							'mail',
+							'Kitinerary will extract Itinerary data from the mail body and attachments.'
+						)
+					}}
+					<br>
+					{{
+						t(
+							'mail',
+							'This will include reservations for flights, trains or events.'
+						)
+					}}
+					<br>
+					<br>
+					{{
+						t(
+							'mail',
+							'HTML2JsonLd will extract Markup data from the mail body.'
+						)
+					}}
+					<br>
+					{{
+						t(
+							'mail',
+							'This will include any type of markup data like json+ld or microdata.'
+						)
+					}}
+				</p>
+				<div style="display: flex">
+					<NcCheckboxRadioSwitch :button-variant="true"
+						:checked.sync="markupLibrary"
+						value="h2ld"
+						name="backend_markup_extraction_radio"
+						type="radio"
+						button-variant-grouped="horizontal"
+						@update:checked="updateMarkupLibrary">
+						HTML2JsonLd
+					</NcCheckboxRadioSwitch>
+					<NcCheckboxRadioSwitch :button-variant="true"
+						:checked.sync="markupLibrary"
+						value="kitinerary"
+						name="backend_markup_extraction_radio"
+						type="radio"
+						button-variant-grouped="horizontal"
+						@update:checked="updateMarkupLibrary">
+						Kitinerary
+					</NcCheckboxRadioSwitch>
+				</div>
+			</article>
+			<AntiSpamSettings />
+		</div>
 	</SettingsSection>
 </template>
 
@@ -278,6 +349,7 @@ import {
 	updateAllowNewMailAccounts,
 	updateLlmEnabled,
 	updateEnabledSmartReply,
+	updateMarkupLibrary,
 } from '../../service/SettingsService.js'
 
 const googleOauthClientId = loadState('mail', 'google_oauth_client_id', null) ?? undefined
@@ -340,6 +412,7 @@ export default {
 			isLlmSummaryConfigured: loadState('mail', 'enabled_llm_summary_backend'),
 			isLlmEnabled: loadState('mail', 'llm_processing', true),
 			isLlmFreePromptConfigured: loadState('mail', 'enabled_llm_free_prompt_backend'),
+			markupLibrary: loadState('mail', 'markup_library_used_for_extraction'),
 
 		}
 	},
@@ -399,6 +472,9 @@ export default {
 		},
 		async updateEnabledSmartReply(checked) {
 			await updateEnabledSmartReply(checked)
+		},
+		async updateMarkupLibrary(choice) {
+			await updateMarkupLibrary(choice)
 		},
 	},
 }

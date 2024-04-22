@@ -182,6 +182,7 @@ export async function fetchMessage(id) {
 }
 
 export async function fetchMessageItineraries(id) {
+	// TODO: If removing this ajax call is ok, remove this method.
 	const url = generateUrl('/apps/mail/api/messages/{id}/itineraries', {
 		id,
 	})
@@ -277,5 +278,31 @@ export async function sendMdn(id, data) {
 		await axios.post(url, data)
 	} catch (e) {
 		throw convertAxiosError(e)
+	}
+}
+
+export async function sendRecipe(json) {
+	const url = generateUrl('/apps/cookbook/api/v1/recipes')
+
+	try {
+		const result = await axios.post(url, json)
+
+		return result.status >= 200 && result.status < 300
+	} catch (e) {
+		return false
+	}
+}
+
+export async function updateSchema(liveUri) {
+	const url = generateUrl('/apps/mail/api/messages/updateSchema/{liveUri}', {
+		liveUri,
+	})
+
+	try {
+		const result = await axios.get(url)
+
+		return result.data
+	} catch (e) {
+		return false
 	}
 }

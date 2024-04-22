@@ -51,6 +51,7 @@ use OCA\Mail\Model\SmimeData;
 use OCA\Mail\Service\AccountService;
 use OCA\Mail\Service\AiIntegrations\AiIntegrationsService;
 use OCA\Mail\Service\ItineraryService;
+use OCA\Mail\Service\SchemaService;
 use OCA\Mail\Service\SmimeService;
 use OCA\Mail\Service\SnoozeService;
 use OCP\AppFramework\Controller;
@@ -65,6 +66,7 @@ use OCP\Files\Folder;
 use OCP\Files\GenericFileException;
 use OCP\Files\IMimeTypeDetector;
 use OCP\Files\NotPermittedException;
+use OCP\IConfig;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IURLGenerator;
@@ -77,6 +79,7 @@ class MessagesController extends Controller {
 	private IMailManager $mailManager;
 	private IMailSearch $mailSearch;
 	private ItineraryService $itineraryService;
+	private SchemaService $schemaService;
 	private ?string $currentUserId;
 	private LoggerInterface $logger;
 	private ?Folder $userFolder;
@@ -92,6 +95,7 @@ class MessagesController extends Controller {
 	private IUserPreferences $preferences;
 	private SnoozeService $snoozeService;
 	private AiIntegrationsService $aiIntegrationService;
+	private IConfig $config;
 
 	public function __construct(string $appName,
 		IRequest $request,
@@ -99,6 +103,7 @@ class MessagesController extends Controller {
 		IMailManager $mailManager,
 		IMailSearch $mailSearch,
 		ItineraryService $itineraryService,
+		SchemaService $schemaService,
 		?string $UserId,
 		$userFolder,
 		LoggerInterface $logger,
@@ -113,12 +118,14 @@ class MessagesController extends Controller {
 		IDkimService $dkimService,
 		IUserPreferences $preferences,
 		SnoozeService $snoozeService,
-		AiIntegrationsService $aiIntegrationService) {
+		AiIntegrationsService $aiIntegrationService,
+		IConfig $config) {
 		parent::__construct($appName, $request);
 		$this->accountService = $accountService;
 		$this->mailManager = $mailManager;
 		$this->mailSearch = $mailSearch;
 		$this->itineraryService = $itineraryService;
+		$this->schemaService = $schemaService;
 		$this->currentUserId = $UserId;
 		$this->userFolder = $userFolder;
 		$this->logger = $logger;
@@ -134,6 +141,7 @@ class MessagesController extends Controller {
 		$this->preferences = $preferences;
 		$this->snoozeService = $snoozeService;
 		$this->aiIntegrationService = $aiIntegrationService;
+		$this->config = $config;
 	}
 
 	/**
@@ -238,10 +246,20 @@ class MessagesController extends Controller {
 			$client->logout();
 		}
 
-		$itineraries = $this->itineraryService->getCached($account, $mailbox, $message->getUid());
-		if ($itineraries) {
-			$json['itineraries'] = $itineraries;
+		$extractionLibrary = $this->config->getAppValue('mail', 'markup_library_used_for_extraction', 'h2ld');
+
+		if ($extractionLibrary === 'kitinerary') {
+			$itineraries = $this->itineraryService->extract($account, $mailbox, $message->getUid());
+			if ($itineraries && !empty($itineraries)) {
+				$json['schema'] = $itineraries;
+			}
+		} else {
+			$schema = $this->schemaService->extract($account, $mailbox, $message->getUid());
+			if ($schema) {
+				$json['schema'] = $schema;
+			}
 		}
+
 		$json['attachments'] = array_map(function ($a) use ($id) {
 			return $this->enrichDownloadUrl(
 				$id,
@@ -285,6 +303,11 @@ class MessagesController extends Controller {
 	 */
 	#[TrapError]
 	public function getItineraries(int $id): JSONResponse {
+		// TODO: If removing this ajax call is ok, remove this method.
+		if ($this->config->getAppValue('mail', 'markup_library_used_for_extraction', 'h2ld') !== 'kitinerary') {
+			return new JSONResponse([], Http::STATUS_NOT_ACCEPTABLE);
+		}
+
 		try {
 			$message = $this->mailManager->getMessage($this->currentUserId, $id);
 			$mailbox = $this->mailManager->getMailbox($this->currentUserId, $message->getMailboxId());
@@ -965,5 +988,21 @@ class MessagesController extends Controller {
 	 */
 	private function attachmentIsCalendarEvent(array $attachment): bool {
 		return in_array($attachment['mime'], ['text/calendar', 'application/ics'], true);
+	}
+
+	public function updateSchemaContent(string $url): JSONResponse {
+		$decodedUrl = rawurldecode($url);
+
+		if (!preg_match("/.*\.json$/", $decodedUrl)) {
+			return new JSONResponse([], Http::STATUS_BAD_REQUEST);
+		}
+
+		$data = json_decode(file_get_contents($decodedUrl));
+
+		if ($data) {
+			return new JSONResponse($data);
+		}
+
+		return new JSONResponse([], Http::STATUS_BAD_REQUEST);
 	}
 }

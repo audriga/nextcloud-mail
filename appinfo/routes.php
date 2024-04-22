@@ -216,6 +216,7 @@ return [
 			'verb' => 'GET'
 		],
 		[
+			// TODO: If removing this ajax call is ok, remove this route.
 			'name' => 'messages#getItineraries',
 			'url' => '/api/messages/{id}/itineraries',
 			'verb' => 'GET'
@@ -351,6 +352,11 @@ return [
 			'verb' => 'PUT'
 		],
 		[
+			'name' => 'settings#setMarkupExtractionLibrary',
+			'url' => '/api/settings/markuplibrary',
+			'verb' => 'PUT'
+		],
+		[
 			'name' => 'trusted_senders#setTrusted',
 			'url' => '/api/trustedsenders/{email}',
 			'verb' => 'PUT'
@@ -474,6 +480,11 @@ return [
 			'name' => 'outOfOffice#followSystem',
 			'url' => '/api/out-of-office/{accountId}/follow-system',
 			'verb' => 'POST',
+		],
+		[
+			'name' => 'messages#updateSchemaContent',
+			'url' => '/api/messages/updateSchema/{url}',
+			'verb' => 'GET'
 		],
 	],
 	'resources' => [
