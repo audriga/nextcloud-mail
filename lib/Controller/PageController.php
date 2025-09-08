@@ -3,30 +3,14 @@
 declare(strict_types=1);
 
 /**
- * @author Christoph Wurst <christoph@winzerhof-wurst.at>
- * @author Lukas Reschke <lukas@owncloud.com>
- * @author Thomas Müller <thomas.mueller@tmit.eu>
- * @author Timo Witte <timo.witte@gmail.com>
- * @author Richard Steinmetz <richard@steinmetz.cloud>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2016-2024 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-FileCopyrightText: 2014-2016 ownCloud, Inc.
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\Controller;
 
+use OCA\Contacts\Event\LoadContactsOcaApiEvent;
 use OCA\Mail\AppInfo\Application;
 use OCA\Mail\Contracts\IMailManager;
 use OCA\Mail\Contracts\IUserPreferences;
@@ -35,10 +19,13 @@ use OCA\Mail\Db\TagMapper;
 use OCA\Mail\Service\AccountService;
 use OCA\Mail\Service\AiIntegrations\AiIntegrationsService;
 use OCA\Mail\Service\AliasesService;
+use OCA\Mail\Service\Classification\ClassificationSettingsService;
+use OCA\Mail\Service\InternalAddressService;
 use OCA\Mail\Service\OutboxService;
 use OCA\Mail\Service\SmimeService;
 use OCA\Viewer\Event\LoadViewer;
 use OCP\AppFramework\Controller;
+use OCP\AppFramework\Http\Attribute\OpenAPI;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\AppFramework\Http\RedirectResponse;
 use OCP\AppFramework\Http\TemplateResponse;
@@ -56,14 +43,13 @@ use OCP\IUserSession;
 use OCP\TextProcessing\FreePromptTaskType;
 use OCP\TextProcessing\SummaryTaskType;
 use OCP\User\IAvailabilityCoordinator;
-use Psr\Container\ContainerExceptionInterface;
-use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Throwable;
 use function class_exists;
 use function http_build_query;
 use function json_decode;
 
+#[OpenAPI(scope: OpenAPI::SCOPE_IGNORE)]
 class PageController extends Controller {
 	private IURLGenerator $urlGenerator;
 	private IConfig $config;
@@ -82,7 +68,9 @@ class PageController extends Controller {
 	private SmimeService $smimeService;
 	private AiIntegrationsService $aiIntegrationsService;
 	private IUserManager $userManager;
-	private ?IAvailabilityCoordinator $availabilityCoordinator;
+	private IAvailabilityCoordinator $availabilityCoordinator;
+	private ClassificationSettingsService $classificationSettingsService;
+	private InternalAddressService $internalAddressService;
 
 	public function __construct(string $appName,
 		IRequest $request,
@@ -90,20 +78,22 @@ class PageController extends Controller {
 		IConfig $config,
 		AccountService $accountService,
 		AliasesService $aliasesService,
-		?string          $UserId,
-		IUserSession     $userSession,
+		?string $UserId,
+		IUserSession $userSession,
 		IUserPreferences $preferences,
-		IMailManager     $mailManager,
-		TagMapper        $tagMapper,
-		IInitialState    $initialStateService,
-		LoggerInterface  $logger,
-		OutboxService    $outboxService,
+		IMailManager $mailManager,
+		TagMapper $tagMapper,
+		IInitialState $initialStateService,
+		LoggerInterface $logger,
+		OutboxService $outboxService,
 		IEventDispatcher $dispatcher,
 		ICredentialStore $credentialStore,
-		SmimeService     $smimeService,
+		SmimeService $smimeService,
 		AiIntegrationsService $aiIntegrationsService,
 		IUserManager $userManager,
-		ContainerInterface $container) {
+		ClassificationSettingsService $classificationSettingsService,
+		InternalAddressService $internalAddressService,
+		IAvailabilityCoordinator $availabilityCoordinator) {
 		parent::__construct($appName, $request);
 
 		$this->urlGenerator = $urlGenerator;
@@ -123,13 +113,9 @@ class PageController extends Controller {
 		$this->smimeService = $smimeService;
 		$this->aiIntegrationsService = $aiIntegrationsService;
 		$this->userManager = $userManager;
-
-		// TODO: inject directly if support for nextcloud < 28 is dropped
-		try {
-			$this->availabilityCoordinator = $container->get(IAvailabilityCoordinator::class);
-		} catch (ContainerExceptionInterface) {
-			$this->availabilityCoordinator = null;
-		}
+		$this->classificationSettingsService = $classificationSettingsService;
+		$this->internalAddressService = $internalAddressService;
+		$this->availabilityCoordinator = $availabilityCoordinator;
 	}
 
 	/**
@@ -185,6 +171,21 @@ class PageController extends Controller {
 		);
 
 		$this->initialStateService->provideInitialState(
+			'internal-addresses-list',
+			$this->internalAddressService->getInternalAddresses($this->currentUserId)
+		);
+
+		$this->initialStateService->provideInitialState(
+			'internal-addresses',
+			$this->preferences->getPreference($this->currentUserId, 'internal-addresses', false)
+		);
+
+		$this->initialStateService->provideInitialState(
+			'smime-sign-aliases',
+			json_decode($this->preferences->getPreference($this->currentUserId, 'smime-sign-aliases', '[]'), true, 512, JSON_THROW_ON_ERROR) ?? []
+		);
+
+		$this->initialStateService->provideInitialState(
 			'sort-order',
 			$this->preferences->getPreference($this->currentUserId, 'sort-order', 'newest')
 		);
@@ -192,7 +193,7 @@ class PageController extends Controller {
 		try {
 			$password = $this->credentialStore->getLoginCredentials()->getPassword();
 			$passwordIsUnavailable = $password === null || $password === '';
-		} catch (CredentialsUnavailableException | PasswordUnavailableException $e) {
+		} catch (CredentialsUnavailableException|PasswordUnavailableException $e) {
 			$passwordIsUnavailable = true;
 		}
 		$this->initialStateService->provideInitialState(
@@ -201,17 +202,20 @@ class PageController extends Controller {
 		);
 
 		$user = $this->userSession->getUser();
-		$response = new TemplateResponse($this->appName, 'index',
-			[
-				'attachment-size-limit' => $this->config->getSystemValue('app.mail.attachment-size-limit', 0),
-				'app-version' => $this->config->getAppValue('mail', 'installed_version'),
-				'external-avatars' => $this->preferences->getPreference($this->currentUserId, 'external-avatars', 'true'),
-				'reply-mode' => $this->preferences->getPreference($this->currentUserId, 'reply-mode', 'top'),
-				'collect-data' => $this->preferences->getPreference($this->currentUserId, 'collect-data', 'true'),
-				'search-priority-body' => $this->preferences->getPreference($this->currentUserId, 'search-priority-body', 'false'),
-				'start-mailbox-id' => $this->preferences->getPreference($this->currentUserId, 'start-mailbox-id'),
-				'tag-classified-messages' => $this->preferences->getPreference($this->currentUserId, 'tag-classified-messages', 'true'),
-			]);
+		$response = new TemplateResponse($this->appName, 'index');
+		$this->initialStateService->provideInitialState('preferences', [
+			'attachment-size-limit' => $this->config->getSystemValue('app.mail.attachment-size-limit', 0),
+			'app-version' => $this->config->getAppValue('mail', 'installed_version'),
+			'external-avatars' => $this->preferences->getPreference($this->currentUserId, 'external-avatars', 'true'),
+			'layout-mode' => $this->preferences->getPreference($this->currentUserId, 'layout-mode', 'vertical-split'),
+			'layout-message-view' => $this->preferences->getPreference($this->currentUserId, 'layout-message-view', $this->config->getAppValue('mail', 'layout_message_view', 'threaded')),
+			'reply-mode' => $this->preferences->getPreference($this->currentUserId, 'reply-mode', 'top'),
+			'collect-data' => $this->preferences->getPreference($this->currentUserId, 'collect-data', 'true'),
+			'search-priority-body' => $this->preferences->getPreference($this->currentUserId, 'search-priority-body', 'false'),
+			'start-mailbox-id' => $this->preferences->getPreference($this->currentUserId, 'start-mailbox-id'),
+			'tag-classified-messages' => $this->classificationSettingsService->isClassificationEnabled($this->currentUserId) ? 'true' : 'false',
+			'follow-up-reminders' => $this->preferences->getPreference($this->currentUserId, 'follow-up-reminders', 'true'),
+		]);
 		$this->initialStateService->provideInitialState(
 			'prefill_displayName',
 			$this->userManager->getDisplayName($this->currentUserId),
@@ -278,12 +282,23 @@ class PageController extends Controller {
 
 		$this->initialStateService->provideInitialState(
 			'llm_summaries_available',
-			$this->config->getAppValue('mail', 'llm_processing', 'no') === 'yes' && $this->aiIntegrationsService->isLlmAvailable(SummaryTaskType::class)
+			$this->aiIntegrationsService->isLlmProcessingEnabled() && $this->aiIntegrationsService->isLlmAvailable(SummaryTaskType::class)
+		);
+
+		$this->initialStateService->provideInitialState(
+			'llm_translation_enabled',
+			$this->aiIntegrationsService->isLlmProcessingEnabled() && $this->aiIntegrationsService->isTaskAvailable('core:text2text:translate')
 		);
 
 		$this->initialStateService->provideInitialState(
 			'llm_freeprompt_available',
-			$this->config->getAppValue('mail', 'llm_processing', 'no') === 'yes' && $this->aiIntegrationsService->isLlmAvailable(FreePromptTaskType::class)
+			$this->aiIntegrationsService->isLlmProcessingEnabled() && $this->aiIntegrationsService->isLlmAvailable(FreePromptTaskType::class)
+		);
+
+		$this->initialStateService->provideInitialState(
+			'llm_followup_available',
+			$this->aiIntegrationsService->isLlmProcessingEnabled()
+			&& $this->aiIntegrationsService->isLlmAvailable(FreePromptTaskType::class)
 		);
 
 		$this->initialStateService->provideInitialState(
@@ -296,17 +311,20 @@ class PageController extends Controller {
 			),
 		);
 
-		if ($this->availabilityCoordinator !== null) {
-			$this->initialStateService->provideInitialState(
-				'enable-system-out-of-office',
-				$this->availabilityCoordinator->isEnabled(),
-			);
-		}
+		$this->initialStateService->provideInitialState(
+			'enable-system-out-of-office',
+			$this->availabilityCoordinator->isEnabled(),
+		);
 
 		$csp = new ContentSecurityPolicy();
 		$csp->addAllowedFrameDomain('\'self\'');
 		$response->setContentSecurityPolicy($csp);
 		$this->dispatcher->dispatchTyped(new RenderReferenceEvent());
+
+		if (class_exists(LoadContactsOcaApiEvent::class)) {
+			$this->dispatcher->dispatchTyped(new LoadContactsOcaApiEvent());
+		}
+
 		return $response;
 	}
 
@@ -400,7 +418,10 @@ class PageController extends Controller {
 	 */
 	public function compose(string $uri): RedirectResponse {
 		$parts = parse_url($uri);
-		$params = ['to' => $parts['path']];
+		$params = [];
+		if (isset($parts['path'])) {
+			$params['to'] = $parts['path'];
+		}
 		if (isset($parts['query'])) {
 			$parts = explode('&', $parts['query']);
 			foreach ($parts as $part) {

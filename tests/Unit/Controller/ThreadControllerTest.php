@@ -3,22 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @author Daniel Kesselberg <mail@danielkesselberg.de>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2021 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\Tests\Unit\Controller;
@@ -248,10 +234,10 @@ class ThreadControllerTest extends TestCase {
 		$mailAccount = new MailAccount();
 		$mailAccount->setId(1);
 		$this->accountService
-				->expects(self::once())
-				->method('find')
-				->with('john', 1)
-				->willReturn(new Account($mailAccount));
+			->expects(self::once())
+			->method('find')
+			->with('john', 1)
+			->willReturn(new Account($mailAccount));
 		$mailbox = new Mailbox();
 		$mailbox->setId(20);
 		$mailbox->setAccountId($mailAccount->getId());
@@ -321,7 +307,7 @@ class ThreadControllerTest extends TestCase {
 		$this->aiIntergrationsService
 			->expects(self::once())
 			->method('generateEventData')
-			->willReturn(new EventData("S", "D"));
+			->willReturn(new EventData('S', 'D'));
 
 		$response = $this->controller->generateEventData(300);
 

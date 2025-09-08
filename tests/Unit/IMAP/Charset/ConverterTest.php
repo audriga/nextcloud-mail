@@ -3,23 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @copyright 2023 Anna Larch <anna.larch@gmx.net>
- * @author Anna Larch <anna.larch@gmx.net>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2023 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\Tests\Unit\IMAP\Charset;
@@ -60,7 +45,7 @@ class ConverterTest extends TestCase {
 		$utfMimeStreamPart = new Horde_Mime_Part();
 		$utfMimeStreamPart->setType('text/plain');
 		$utfMimeStreamPart->setCharset('UTF-8');
-		$fh = fopen("php://temp", 'r+');
+		$fh = fopen('php://temp', 'r+');
 		fwrite($fh, '💦');
 		$utfMimeStreamPart->setContents($fh, [ 'usestream' => true, ]);
 		// Hebrew

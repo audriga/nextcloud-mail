@@ -1,23 +1,7 @@
 <!--
-  - @copyright 2018 Christoph Wurst <christoph@winzerhof-wurst.at>
-  -
-  - @author 2018 Christoph Wurst <christoph@winzerhof-wurst.at>
-  -
-  - @license AGPL-3.0-or-later
-  -
-  - This program is free software: you can redistribute it and/or modify
-  - it under the terms of the GNU Affero General Public License as
-  - published by the Free Software Foundation, either version 3 of the
-  - License, or (at your option) any later version.
-  -
-  - This program is distributed in the hope that it will be useful,
-  - but WITHOUT ANY WARRANTY; without even the implied warranty of
-  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  - GNU Affero General Public License for more details.
-  -
-  - You should have received a copy of the GNU Affero General Public License
-  - along with this program.  If not, see <http://www.gnu.org/licenses/>.
-  -->
+  - SPDX-FileCopyrightText: 2018 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 
 <template>
 	<div class="attachment" :class="{'message-attachment--can-preview': canPreview }">
@@ -33,6 +17,13 @@
 			</span>
 			<span class="attachment-size">{{ humanReadable(size) }}</span>
 		</div>
+		<FilePicker v-if="isFilePickerOpen"
+			:name="t('mail', 'Choose a folder to store the attachment in')"
+			:buttons="saveAttachementButtons"
+			:allow-pick-directory="true"
+			:multiselect="false"
+			:mimetype-filter="['httpd/unix-directory']"
+			@close="()=>isFilePickerOpen = false" />
 		<Actions :boundaries-element="boundariesElement">
 			<template v-if="!showCalendarPopover">
 				<ActionButton v-if="isCalendarEvent"
@@ -54,7 +45,7 @@
 				</ActionButton>
 				<ActionButton class="attachment-save-to-cloud"
 					:disabled="savingToCloud"
-					@click.stop="saveToCloud">
+					@click.stop="()=>isFilePickerOpen = true">
 					<template #icon>
 						<IconSave v-if="!savingToCloud" :size="20" />
 						<IconLoading v-else-if="savingToCloud" :size="20" />
@@ -83,15 +74,16 @@
 
 import { formatFileSize } from '@nextcloud/files'
 import { translate as t } from '@nextcloud/l10n'
-import { getFilePickerBuilder, showError, showSuccess } from '@nextcloud/dialogs'
+import { showError, showSuccess } from '@nextcloud/dialogs'
+import { FilePickerVue as FilePicker } from '@nextcloud/dialogs/filepicker.js'
 import { mixin as onClickOutside } from 'vue-on-click-outside'
 
 import { NcActions as Actions, NcActionButton as ActionButton, NcLoadingIcon as IconLoading } from '@nextcloud/vue'
 
 import IconAdd from 'vue-material-design-icons/Plus.vue'
 import IconArrow from 'vue-material-design-icons/ArrowLeft.vue'
-import IconSave from 'vue-material-design-icons/Folder.vue'
-import IconDownload from 'vue-material-design-icons/Download.vue'
+import IconSave from 'vue-material-design-icons/FolderOutline.vue'
+import IconDownload from 'vue-material-design-icons/TrayArrowDown.vue'
 import Logger from '../logger.js'
 
 import { downloadAttachment, saveAttachmentToFiles } from '../service/AttachmentService.js'
@@ -100,6 +92,7 @@ import { getUserCalendars, importCalendarEvent } from '../service/DAVService.js'
 export default {
 	name: 'MessageAttachment',
 	components: {
+		FilePicker,
 		Actions,
 		ActionButton,
 		IconAdd,
@@ -154,6 +147,14 @@ export default {
 			loadingCalendars: false,
 			calendars: [],
 			showCalendarPopover: false,
+			saveAttachementButtons: [
+				{
+					label: t('mail', 'Choose'),
+					callback: this.saveToCloud,
+					type: 'primary',
+				},
+			],
+			isFilePickerOpen: false,
 		}
 	},
 	computed: {
@@ -185,29 +186,21 @@ export default {
 		humanReadable(size) {
 			return formatFileSize(size)
 		},
-		saveToCloud() {
-			const saveAttachment = (id, attachmentId) => (directory) => {
-				return saveAttachmentToFiles(id, attachmentId, directory)
-			}
+		async saveToCloud(dest) {
+			const path = dest[0].path
+			this.savingToCloud = true
 			const id = this.$route.params.threadId
-			const picker = getFilePickerBuilder(t('mail', 'Choose a folder to store the attachment in'))
-				.setMultiSelect(false)
-				.addMimeTypeFilter('httpd/unix-directory')
-				.setModal(true)
-				.setType(1)
-				.allowDirectories(true)
-				.build()
 
-			return picker
-				.pick()
-				.then((dest) => {
-					this.savingToCloud = true
-					return dest
-				})
-				.then(saveAttachment(id, this.id))
-				.then(() => Logger.info('saved'))
-				.catch((e) => Logger.error('not saved', { error: e }))
-				.then(() => (this.savingToCloud = false))
+			try {
+				await saveAttachmentToFiles(id, this.id, path)
+				Logger.info('saved')
+				showSuccess(t('mail', 'Attachment saved to Files'))
+			} catch (e) {
+				Logger.error('not saved', { error: e })
+				showError(t('mail', 'Attachment could not be saved'))
+			} finally {
+				this.savingToCloud = false
+			}
 		},
 		download() {
 			window.location = this.url
@@ -313,13 +306,16 @@ export default {
 	max-width: 100%;
 	border-radius: var(--border-radius);
 }
+
 .attachment-import-popover {
-	right: 32px;
+	inset-inline-end: 32px;
 	top: 42px;
 }
+
 .mail-attached-image:hover {
 	opacity: 0.8;
 }
+
 .attachment-name {
 	display: inline-block;
 	width: 100%;
@@ -339,12 +335,14 @@ export default {
 
 .attachment-icon {
 	vertical-align: middle;
-	text-align: left;
+	text-align: start;
 	margin-bottom: 20px;
 }
+
 .action-item {
 	transition: 0.4s;
 }
+
 .mail-message-attachments {
 	overflow-x: auto;
 	overflow-y: auto;

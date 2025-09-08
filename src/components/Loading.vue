@@ -1,10 +1,14 @@
+<!--
+  - SPDX-FileCopyrightText: 2018 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 <template>
 	<div class="wrapper">
 		<EmptyContent v-if="hint"
 			class="empty-content"
 			:name="hint">
 			<template #icon>
-				<IconLoading :size="20" />
+				<IconLoading />
 			</template>
 			<transition name="fade">
 				<em v-if="slowHint && slow">{{ slowHint }}</em>
@@ -58,14 +62,17 @@ export default {
 .fade-leave-active {
 	transition: opacity 0.5s;
 }
+
 .fade-enter,
 .fade-leave-to {
 	opacity: 0;
 }
+
 .empty-content {
 	height: 100%;
 	display: flex;
 }
+
 .wrapper {
 	display: flex;
 	justify-content: center;

@@ -1,22 +1,8 @@
 <?php
 
 /**
- * @author Christoph Wurst <christoph@winzerhof-wurst.at>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2017 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\Tests\Integration\Framework;
@@ -38,7 +24,7 @@ use OCP\Server;
 use function in_array;
 
 trait ImapTest {
-	/**  @var Horde_Imap_Client_Socket */
+	/** @var Horde_Imap_Client_Socket */
 	private $client;
 
 	/** @var array<string> */
@@ -215,6 +201,31 @@ trait ImapTest {
 	public function deleteMessage($mailbox, $id, ?MailAccount $account = null) {
 		$client = $this->getClient($account);
 		$ids = new Horde_Imap_Client_Ids([$id]);
+		try {
+			$client->expunge($mailbox, [
+				'ids' => $ids,
+				'delete' => true,
+			]);
+		} finally {
+			$client->logout();
+		}
+	}
+
+	/**
+	 * Delete a message without informing Horde or the db cache. This simulates another client
+	 * deleting a message on IMAP.
+	 *
+	 * @param int[] $uids
+	 */
+	public function deleteMessagesExternally(string $mailbox, array $uids): void {
+		$client = new Horde_Imap_Client_Socket([
+			'username' => 'user@domain.tld',
+			'password' => 'mypassword',
+			'hostspec' => '127.0.0.1',
+			'port' => 993,
+			'secure' => 'ssl',
+		]);
+		$ids = new Horde_Imap_Client_Ids($uids);
 		try {
 			$client->expunge($mailbox, [
 				'ids' => $ids,

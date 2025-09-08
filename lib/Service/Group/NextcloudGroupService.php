@@ -3,23 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @author Matthias Rella <mrella@pisys.eu>
- * @author Thomas Citharel <nextcloud@tcit.fr>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2018 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\Service\Group;
@@ -46,19 +31,24 @@ class NextcloudGroupService implements IGroupService {
 	 *
 	 * @var string
 	 */
-	private $namespace = "Nextcloud";
+	private $namespace = 'Nextcloud';
 
 	public function __construct(IGroupManager $groupManager, IConfig $config) {
 		$this->groupManager = $groupManager;
 		$this->config = $config;
 	}
 
+	#[\Override]
 	public function getNamespace(): string {
 		return $this->namespace;
 	}
 
+	#[\Override]
 	public function search(string $term): array {
-		if ($this->config->getAppValue('core', 'shareapi_allow_group_sharing', 'yes') !== 'yes') {
+		$c1 = $this->config->getAppValue('core', 'shareapi_allow_group_sharing', 'yes');
+		$c2 = $this->config->getAppValue('core', 'shareapi_only_share_with_group_members', 'no');
+		if ($c1 !== 'yes'
+			|| $c2 !== 'no') {
 			return [];
 		}
 		$groups = $this->groupManager->search($term);
@@ -74,6 +64,7 @@ class NextcloudGroupService implements IGroupService {
 		);
 	}
 
+	#[\Override]
 	public function getUsers(string $groupId): array {
 		if (!$this->groupManager->groupExists($groupId)) {
 			throw new ServiceException("$groupId ({$this->getNamespace()}) does not exist");

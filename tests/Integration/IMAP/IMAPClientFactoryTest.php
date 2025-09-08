@@ -3,34 +3,23 @@
 declare(strict_types=1);
 
 /**
- * @author Christoph Wurst <christoph@winzerhof-wurst.at>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2017 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\Tests\Integration\IMAP;
 
 use ChristophWurst\Nextcloud\Testing\TestCase;
+use Exception;
 use Horde_Imap_Client_Exception;
 use Horde_Imap_Client_Socket;
 use OC\Memcache\Redis;
 use OCA\Mail\Account;
+use OCA\Mail\Cache\HordeCacheFactory;
 use OCA\Mail\Db\MailAccount;
+use OCA\Mail\IMAP\HordeImapClient;
 use OCA\Mail\IMAP\IMAPClientFactory;
-use OCA\Mail\IMAP\ImapClientRateLimitingDecorator;
+use OCA\Mail\Tests\Integration\Framework\Caching;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\EventDispatcher\IEventDispatcher;
 use OCP\ICacheFactory;
@@ -54,6 +43,7 @@ class IMAPClientFactoryTest extends TestCase {
 	private $factory;
 	private IEventDispatcher|MockObject $eventDispatcher;
 	private ITimeFactory|MockObject $timeFactory;
+	private HordeCacheFactory|MockObject $hordeCacheFactory;
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -63,6 +53,7 @@ class IMAPClientFactoryTest extends TestCase {
 		$this->cacheFactory = Server::get(ICacheFactory::class);
 		$this->eventDispatcher = $this->createMock(IEventDispatcher::class);
 		$this->timeFactory = $this->createMock(ITimeFactory::class);
+		$this->hordeCacheFactory = $this->createMock(HordeCacheFactory::class);
 
 		$this->factory = new IMAPClientFactory(
 			$this->crypto,
@@ -70,6 +61,7 @@ class IMAPClientFactoryTest extends TestCase {
 			$this->cacheFactory,
 			$this->eventDispatcher,
 			$this->timeFactory,
+			$this->hordeCacheFactory,
 		);
 	}
 
@@ -100,6 +92,17 @@ class IMAPClientFactoryTest extends TestCase {
 		$this->assertInstanceOf(Horde_Imap_Client_Socket::class, $client);
 	}
 
+	public function testGetClientDecryptionFailing(): void {
+		$this->expectException(Exception::class);
+		$account = $this->getTestAccount();
+		$this->crypto->expects($this->once())
+			->method('decrypt')
+			->with('encrypted')
+			->willThrowException(new Exception('Decryption does not throw a specific exception'));
+
+		$this->factory->getClient($account);
+	}
+
 	public function testClientConnectivity() {
 		$account = $this->getTestAccount();
 		$this->crypto->expects($this->once())
@@ -120,14 +123,22 @@ class IMAPClientFactoryTest extends TestCase {
 		if (ltrim($cacheClass, '\\') !== Redis::class) {
 			$this->markTestSkipped('Redis not available. Found ' . $cacheClass);
 		}
+
+		[$imapClientFactory, $cacheFactory] = Caching::getImapClientFactoryAndConfiguredCacheFactory($this->crypto);
+		$this->assertInstanceOf(
+			Redis::class,
+			$cacheFactory->createDistributed(),
+			'Distributed cache is not Redis',
+		);
+
 		$account = $this->getTestAccount();
 		$this->crypto->expects($this->once())
 			->method('decrypt')
 			->with('encrypted')
 			->willReturn('notmypassword');
 
-		$client = $this->factory->getClient($account);
-		self::assertInstanceOf(ImapClientRateLimitingDecorator::class, $client);
+		$client = $imapClientFactory->getClient($account);
+		self::assertInstanceOf(HordeImapClient::class, $client);
 		foreach ([1, 2, 3] as $attempts) {
 			try {
 				$client->login();

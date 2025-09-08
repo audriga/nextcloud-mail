@@ -3,29 +3,15 @@
 declare(strict_types=1);
 
 /**
- * @author Christoph Wurst <christoph@winzerhof-wurst.at>
- * @author Thomas Müller <thomas.mueller@tmit.eu>
- * @author Richard Steinmetz <richard@steinmetz.cloud>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2016-2024 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-FileCopyrightText: 2016 ownCloud, Inc.
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\Service;
 
 use OCA\Mail\Account;
+use OCA\Mail\AppInfo\Application;
 use OCA\Mail\BackgroundJob\PreviewEnhancementProcessingJob;
 use OCA\Mail\BackgroundJob\QuotaJob;
 use OCA\Mail\BackgroundJob\SyncJob;
@@ -36,7 +22,9 @@ use OCA\Mail\Exception\ClientException;
 use OCA\Mail\Exception\ServiceException;
 use OCA\Mail\IMAP\IMAPClientFactory;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
+use OCP\IConfig;
 use function array_map;
 
 class AccountService {
@@ -46,7 +34,7 @@ class AccountService {
 	/**
 	 * Cache accounts for multiple calls to 'findByUserId'
 	 *
-	 * @var array<string, Account[]>
+	 * @var array<string, list<Account>>
 	 */
 	private array $accounts = [];
 
@@ -56,13 +44,17 @@ class AccountService {
 	/** @var IJobList */
 	private $jobList;
 
-	/** @var IMAPClientFactory*/
+	/** @var IMAPClientFactory */
 	private $imapClientFactory;
 
-	public function __construct(MailAccountMapper $mapper,
+	public function __construct(
+		MailAccountMapper $mapper,
 		AliasesService $aliasesService,
 		IJobList $jobList,
-		IMAPClientFactory $imapClientFactory) {
+		IMAPClientFactory $imapClientFactory,
+		private readonly IConfig $config,
+		private readonly ITimeFactory $time,
+	) {
 		$this->mapper = $mapper;
 		$this->aliasesService = $aliasesService;
 		$this->jobList = $jobList;
@@ -71,7 +63,7 @@ class AccountService {
 
 	/**
 	 * @param string $currentUserId
-	 * @return Account[]
+	 * @return list<Account>
 	 */
 	public function findByUserId(string $currentUserId): array {
 		if (!isset($this->accounts[$currentUserId])) {
@@ -91,6 +83,35 @@ class AccountService {
 	 */
 	public function findById(int $id): Account {
 		return new Account($this->mapper->findById($id));
+	}
+
+	/**
+	 * Finds a mail account by user id and mail address
+	 *
+	 * @since 4.0.0
+	 *
+	 * @param string $userId system user id
+	 * @param string $address mail address (e.g. test@example.com)
+	 *
+	 * @return Account[]
+	 */
+	public function findByUserIdAndAddress(string $userId, string $address): array {
+		// evaluate if cached accounts collection already exists
+		if (isset($this->accounts[$userId])) {
+			// initialize temporary collection
+			$list = [];
+			// iterate through accounts and find accounts matching mail address
+			foreach ($this->accounts[$userId] as $account) {
+				if ($account->getEmail() === $address) {
+					$list[] = $account;
+				}
+			}
+			return $list;
+		}
+		// if cached accounts collection did not exist retrieve account details directly from the data store
+		return array_map(static function ($a) {
+			return new Account($a);
+		}, $this->mapper->findByUserIdAndAddress($userId, $address));
 	}
 
 	/**
@@ -159,6 +180,14 @@ class AccountService {
 		$this->jobList->add(TrainImportanceClassifierJob::class, ['accountId' => $newAccount->getId()]);
 		$this->jobList->add(PreviewEnhancementProcessingJob::class, ['accountId' => $newAccount->getId()]);
 		$this->jobList->add(QuotaJob::class, ['accountId' => $newAccount->getId()]);
+
+		// Set initial heartbeat
+		$this->config->setUserValue(
+			$newAccount->getUserId(),
+			Application::APP_ID,
+			'ui-heartbeat',
+			(string)$this->time->getTime(),
+		);
 
 		return $newAccount;
 	}

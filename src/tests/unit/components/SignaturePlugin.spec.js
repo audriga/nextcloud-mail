@@ -1,22 +1,6 @@
-/*
- * @copyright 2022 Daniel Kesselberg <mail@danielkesselberg.de>
- *
- * @author 2022 Daniel Kesselberg <mail@danielkesselberg.de>
- *
- * @license AGPL-3.0-or-later
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+/**
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 import VirtualTestEditor from '../../virtualtesteditor.js'
@@ -38,6 +22,7 @@ describe('SignaturePlugin', () => {
 			const expected = '<p>bonjour bonjour</p><div class="signature">--&nbsp;<p>&nbsp;</p><p>Jane Doe</p></div>'
 
 			const editor = await VirtualTestEditor.create({
+				licenseKey: 'GPL',
 				initialData: text,
 				plugins: [ParagraphPlugin, SignaturePlugin],
 			})
@@ -55,6 +40,7 @@ describe('SignaturePlugin', () => {
 			const text = '<p>bonjour bonjour</p><div class="signature"><p>--&nbsp;</p><p>Bob</p></div>'
 
 			const editor = await VirtualTestEditor.create({
+				licenseKey: 'GPL',
 				initialData: text,
 				plugins: [ParagraphPlugin, SignaturePlugin],
 			})
@@ -70,9 +56,10 @@ describe('SignaturePlugin', () => {
 
 		it('Add signature to content above quote', async() => {
 			const text = '<p>bonjour bonjour</p><div class="quote">"John Doe" john.doe@localhost - January 1, 1970 1:00 AM <blockquote><p>bonjour bonjour</p></blockquote></div>'
-			const expected = '<p>bonjour bonjour</p><div class=\"signature\">--&nbsp;<p>&nbsp;</p><p>Jane Doe</p><p>&nbsp;</p></div><div class=\"quote\"><p>\"John Doe\" john.doe@localhost - January 1, 1970 1:00 AM</p><p>bonjour bonjour</p></div>'
+			const expected = '<p>bonjour bonjour</p><div class="signature">--&nbsp;<p>&nbsp;</p><p>Jane Doe</p><p>&nbsp;</p></div><div class=\"quote\"><p>\"John Doe\" john.doe@localhost - January 1, 1970 1:00 AM</p><p>bonjour bonjour</p></div>'
 
 			const editor = await VirtualTestEditor.create({
+				licenseKey: 'GPL',
 				initialData: text,
 				plugins: [ParagraphPlugin, QuotePlugin, SignaturePlugin],
 			})
@@ -95,6 +82,7 @@ describe('SignaturePlugin', () => {
 			const expected = '<p>bonjour bonjour</p><div class="signature">--&nbsp;<p>&nbsp;</p><p>Jane Doe</p></div>'
 
 			const editor = await VirtualTestEditor.create({
+				licenseKey: 'GPL',
 				initialData: text,
 				plugins: [ParagraphPlugin, SignaturePlugin],
 			})

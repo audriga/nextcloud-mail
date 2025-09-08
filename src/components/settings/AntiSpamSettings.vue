@@ -1,23 +1,7 @@
 <!--
-  - @copyright 2021 Anna Larch <anna@nextcloud.com>
-  -
-  - @author Anna Larch <anna@nextcloud.com>
-  -
-  - @license AGPL-3.0-or-later
-  -
-  - This program is free software: you can redistribute it and/or modify
-  - it under the terms of the GNU Affero General Public License as
-  - published by the Free Software Foundation, either version 3 of the
-  - License, or (at your option) any later version.
-  -
-  - This program is distributed in the hope that it will be useful,
-  - but WITHOUT ANY WARRANTY; without even the implied warranty of
-  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  - GNU Affero General Public License for more details.
-  -
-  - You should have received a copy of the GNU Affero General Public License
-  - along with this program.  If not, see <http://www.gnu.org/licenses/>.
-  -->
+  - SPDX-FileCopyrightText: 2021 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 
 <template>
 	<div class="section">
@@ -80,9 +64,9 @@ import logger from '../../logger.js'
 import { loadState } from '@nextcloud/initial-state'
 import { setAntiSpamEmail, deleteAntiSpamEmail } from '../../service/SettingsService.js'
 import { showError, showSuccess } from '@nextcloud/dialogs'
-import ButtonVue from '@nextcloud/vue/dist/Components/NcButton.js'
-import IconUpload from 'vue-material-design-icons/Upload.vue'
-import IconDelete from 'vue-material-design-icons/Delete.vue'
+import ButtonVue from '@nextcloud/vue/components/NcButton'
+import IconUpload from 'vue-material-design-icons/TrayArrowUp.vue'
+import IconDelete from 'vue-material-design-icons/TrashCanOutline.vue'
 
 const email = loadState('mail', 'antispam_setting', '[]')
 
@@ -149,7 +133,7 @@ export default {
 
 	.group-title {
 		min-width: 100px;
-		text-align: right;
+		text-align: end;
 		margin: 10px;
 		font-weight: bold;
 	}
@@ -180,6 +164,7 @@ h4 {
 		padding: 25px;
 	}
 }
+
 input[type='radio'] {
 	display: none;
 }
@@ -187,6 +172,7 @@ input[type='radio'] {
 .flex-row {
 	display: flex;
 }
+
 form {
 	label {
 		color: var(--color-text-maxcontrast);

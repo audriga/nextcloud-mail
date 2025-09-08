@@ -3,23 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @author Christoph Wurst <christoph@winzerhof-wurst.at>
- * @author Richard Steinmetz <richard@steinmetz.cloud>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2017 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\Tests\Unit\Service;
@@ -42,6 +27,7 @@ use OCA\Mail\Exception\ServiceException;
 use OCA\Mail\Folder;
 use OCA\Mail\IMAP\FolderMapper;
 use OCA\Mail\IMAP\IMAPClientFactory;
+use OCA\Mail\IMAP\ImapFlag;
 use OCA\Mail\IMAP\MailboxSync;
 use OCA\Mail\IMAP\MessageMapper as ImapMessageMapper;
 use OCA\Mail\Service\MailManager;
@@ -87,7 +73,7 @@ class MailManagerTest extends TestCase {
 	/** @var ThreadMapper|MockObject */
 	private $threadMapper;
 
-	
+
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -115,7 +101,8 @@ class MailManagerTest extends TestCase {
 			$this->logger,
 			$this->tagMapper,
 			$this->messageTagsMapper,
-			$this->threadMapper
+			$this->threadMapper,
+			new ImapFlag(),
 		);
 	}
 
@@ -148,7 +135,7 @@ class MailManagerTest extends TestCase {
 		$folder = $this->createMock(Folder::class);
 		$this->folderMapper->expects($this->once())
 			->method('createFolder')
-			->with($this->equalTo($client), $this->equalTo($account), $this->equalTo('new'))
+			->with($this->equalTo($client), $this->equalTo('new'))
 			->willReturn($folder);
 		$this->folderMapper->expects($this->once())
 			->method('fetchFolderAcls')
@@ -175,7 +162,7 @@ class MailManagerTest extends TestCase {
 		$this->mailboxMapper->expects($this->once())
 			->method('find')
 			->with($account, 'INBOX')
-			->willThrowException(new DoesNotExistException(""));
+			->willThrowException(new DoesNotExistException(''));
 		$this->expectException(ServiceException::class);
 
 		$this->manager->deleteMessage(
@@ -202,7 +189,7 @@ class MailManagerTest extends TestCase {
 		$this->mailboxMapper->expects($this->once())
 			->method('findById')
 			->with(123)
-			->willThrowException(new DoesNotExistException(""));
+			->willThrowException(new DoesNotExistException(''));
 		$this->expectException(ServiceException::class);
 
 		$this->manager->deleteMessage(
@@ -316,7 +303,7 @@ class MailManagerTest extends TestCase {
 			->willReturn($client);
 		$client->expects($this->once())
 			->method('status')
-			->willReturn([ 'permflags' => [ "11" => "\*" ] ]);
+			->willReturn([ 'permflags' => [ '11' => "\*" ] ]);
 		$this->imapMessageMapper->expects($this->once())
 			->method('addFlag');
 
@@ -332,14 +319,14 @@ class MailManagerTest extends TestCase {
 			->willReturn($client);
 		$client->expects($this->once())
 			->method('status')
-			->willReturn([ 'permflags' => [ "11" => "\*" ] ]);
+			->willReturn([ 'permflags' => [ '11' => "\*" ] ]);
 		$this->imapMessageMapper->expects($this->once())
 			->method('removeFlag');
 
 		$this->manager->flagMessage($account, 'INBOX', 123, Tag::LABEL_IMPORTANT, false);
 	}
 
-	public function testFilterFlagStandard(): void {
+	public function testFilterFlagsWithSystemFlags(): void {
 		$account = $this->createMock(Account::class);
 		$client = $this->createMock(Horde_Imap_Client_Socket::class);
 		$flags = [
@@ -349,32 +336,50 @@ class MailManagerTest extends TestCase {
 			'deleted' => [\Horde_Imap_Client::FLAG_DELETED],
 			'draft' => [\Horde_Imap_Client::FLAG_DRAFT],
 			'recent' => [\Horde_Imap_Client::FLAG_RECENT],
-			'junk' => [\Horde_Imap_Client::FLAG_JUNK, 'junk'],
-			'mdnsent' => [\Horde_Imap_Client::FLAG_MDNSENT],
 		];
 
-		//standard flags
+		// test all system flags
 		foreach ($flags as $k => $flag) {
 			$this->assertEquals($this->manager->filterFlags($client, $account, $k, 'INBOX'), $flags[$k]);
 		}
 	}
 
-	public function testSetFilterFlagsNoCapabilities() {
+	public function testFilterFlagsWithDefinedKeyword() {
+		$account = $this->createMock(Account::class);
+		$client = $this->createMock(Horde_Imap_Client_Socket::class);
+
+		$client->expects($this->exactly(2))
+			->method('status')
+			->willReturn(['permflags' => ['\seen', '$junk', '$notjunk']]);
+
+		// test keyword supported
+		$this->assertEquals(['$junk'], $this->manager->filterFlags($client, $account, '$junk', 'INBOX'));
+		// test keyword unsupported
+		$this->assertEquals([], $this->manager->filterFlags($client, $account, '$autojunk', 'INBOX'));
+	}
+
+	public function testFilterFlagsWithCustomKeyword() {
+		$account = $this->createMock(Account::class);
+		$client = $this->createMock(Horde_Imap_Client_Socket::class);
+
+		$client->expects($this->exactly(2))
+			->method('status')
+			->willReturnOnConsecutiveCalls(
+				['permflags' => ['\seen', '$junk', '$notjunk', '\*']],
+				['permflags' => ['\seen', '$junk', '$notjunk']],
+			);
+
+		// test custom keyword supported
+		$this->assertEquals([Tag::LABEL_IMPORTANT], $this->manager->filterFlags($client, $account, Tag::LABEL_IMPORTANT, 'INBOX'));
+		// test custom keyword unsupported
+		$this->assertEquals([], $this->manager->filterFlags($client, $account, Tag::LABEL_IMPORTANT, 'INBOX'));
+	}
+
+	public function testFilterFlagsNoCapabilities() {
 		$account = $this->createMock(Account::class);
 		$client = $this->createMock(Horde_Imap_Client_Socket::class);
 
 		$this->assertEquals([], $this->manager->filterFlags($client, $account, Tag::LABEL_IMPORTANT, 'INBOX'));
-	}
-
-	public function testSetFilterFlagsImportant() {
-		$account = $this->createMock(Account::class);
-		$client = $this->createMock(Horde_Imap_Client_Socket::class);
-
-		$client->expects($this->once())
-			->method('status')
-			->willReturn(['permflags' => [ "11" => "\*" ]]);
-
-		$this->assertEquals([Tag::LABEL_IMPORTANT], $this->manager->filterFlags($client, $account, Tag::LABEL_IMPORTANT, 'INBOX'));
 	}
 
 	public function testIsPermflagsEnabledTrue(): void {
@@ -383,7 +388,7 @@ class MailManagerTest extends TestCase {
 
 		$client->expects($this->once())
 			->method('status')
-			->willReturn(['permflags' => [ "11" => "\*"] ]);
+			->willReturn(['permflags' => [ '11' => "\*"] ]);
 
 		$this->assertTrue($this->manager->isPermflagsEnabled($client, $account, 'INBOX'));
 	}
@@ -430,14 +435,15 @@ class MailManagerTest extends TestCase {
 		$this->imapClientFactory->expects($this->any())
 			->method('getClient')
 			->willReturn($client);
-		$mb = $this->createMock(Mailbox::class);
+		$mb = new Mailbox();
+		$mb->setName('INBOX');
 		$this->mailboxMapper->expects($this->once())
 			->method('find')
 			->with($account, 'INBOX')
 			->willReturn($mb);
 		$client->expects($this->once())
 			->method('status')
-			->willReturn(['permflags' => [ "11" => "\*"] ]);
+			->willReturn(['permflags' => [ '11' => "\*"] ]);
 		$this->imapMessageMapper->expects($this->once())
 			->method('addFlag')
 			->with($client, $mb, [123], Tag::LABEL_IMPORTANT);
@@ -458,14 +464,15 @@ class MailManagerTest extends TestCase {
 		$this->imapClientFactory->expects($this->any())
 			->method('getClient')
 			->willReturn($client);
-		$mb = $this->createMock(Mailbox::class);
+		$mb = new Mailbox();
+		$mb->setName('INBOX');
 		$this->mailboxMapper->expects($this->once())
 			->method('find')
 			->with($account, 'INBOX')
 			->willReturn($mb);
 		$client->expects($this->once())
 			->method('status')
-			->willReturn(['permflags' => [ "11" => "\*"] ]);
+			->willReturn(['permflags' => [ '11' => "\*"] ]);
 		$this->imapMessageMapper->expects($this->once())
 			->method('removeFlag')
 			->with($client, $mb, [123], Tag::LABEL_IMPORTANT);
@@ -489,7 +496,8 @@ class MailManagerTest extends TestCase {
 		$this->imapClientFactory->expects($this->any())
 			->method('getClient')
 			->willReturn($client);
-		$mb = $this->createMock(Mailbox::class);
+		$mb = new Mailbox();
+		$mb->setName('INBOX');
 		$this->mailboxMapper->expects($this->once())
 			->method('find')
 			->with($account, 'INBOX')
@@ -589,6 +597,28 @@ class MailManagerTest extends TestCase {
 		self::assertEquals('Hello Hello Hello 👋', $tag->getDisplayName());
 		self::assertEquals('Hello_Hello_&2D3cSw-', $tag->getImapLabel());
 		self::assertEquals('#0082c9', $tag->getColor());
+	}
+
+	public function testCreateTagForFollowUp(): void {
+		$this->tagMapper->expects(self::once())
+			->method('getTagByImapLabel')
+			->willThrowException(new DoesNotExistException('Computer says no'));
+		$this->tagMapper->expects(self::once())
+			->method('insert')
+			->willReturnCallback(static function (Tag $tag) {
+				self::assertEquals('admin', $tag->getUserId());
+				self::assertEquals('Follow up', $tag->getDisplayName());
+				self::assertEquals('$follow_up', $tag->getImapLabel());
+				self::assertEquals('#d77000', $tag->getColor());
+				return $tag;
+			});
+
+		$tag = $this->manager->createTag('Follow up', '#d77000', 'admin');
+
+		self::assertEquals('admin', $tag->getUserId());
+		self::assertEquals('Follow up', $tag->getDisplayName());
+		self::assertEquals('$follow_up', $tag->getImapLabel());
+		self::assertEquals('#d77000', $tag->getColor());
 	}
 
 	public function testUpdateTag(): void {

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2020-2024 Nextcloud GmbH and Nextcloud contributors
+# SPDX-License-Identifier: MIT
 name: Packaging
 on: pull_request
 
@@ -10,7 +12,7 @@ jobs:
     name: Build release tarball
     steps:
       - name: Checkout
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Read package.json node and npm engines version
         uses: skjnldsv/read-package-engines-version-actions@8205673bab74a63eb9b8093402fd9e0e018663a1 # v2.2
         id: versions
@@ -22,7 +24,7 @@ jobs:
           tools: 'krankerl'
       - name: Package app
         run: krankerl package
-      - uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           path: build/artifacts/mail.tar.gz
           if-no-files-found: error

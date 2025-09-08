@@ -3,22 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @author Christoph Wurst <christoph@winzerhof-wurst.at>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\Tests\Integration;
@@ -28,12 +14,17 @@ use Horde_Imap_Client_Socket;
 use OCA\Mail\Account;
 use OCA\Mail\Contracts\IMailManager;
 use OCA\Mail\Controller\MailboxesController;
+use OCA\Mail\Db\MessageMapper as DbMessageMapper;
 use OCA\Mail\Service\AccountService;
+use OCA\Mail\Service\Sync\ImapToDbSynchronizer;
 use OCA\Mail\Service\Sync\SyncService;
 use OCA\Mail\Tests\Integration\Framework\ImapTest;
 use OCA\Mail\Tests\Integration\Framework\ImapTestAccount;
+use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\IConfig;
 use OCP\IRequest;
 use OCP\Server;
+use Psr\Log\LoggerInterface;
 
 class MailboxSynchronizationTest extends TestCase {
 	use ImapTest,
@@ -57,7 +48,9 @@ class MailboxSynchronizationTest extends TestCase {
 			Server::get(AccountService::class),
 			$this->getTestAccountUserId(),
 			Server::get(IMailManager::class),
-			Server::get(SyncService::class)
+			Server::get(SyncService::class),
+			Server::get(IConfig::class),
+			Server::get(ITimeFactory::class),
 		);
 
 		$this->account = $this->createTestAccount('user12345');
@@ -86,9 +79,9 @@ class MailboxSynchronizationTest extends TestCase {
 			new Account($this->account),
 			$inbox,
 			Horde_Imap_Client::SYNC_NEWMSGSUIDS | Horde_Imap_Client::SYNC_FLAGSUIDS | Horde_Imap_Client::SYNC_VANISHEDUIDS,
-			[],
+			false,
 			null,
-			false
+			[]
 		);
 
 		$jsonResponse = $this->foldersController->sync(
@@ -124,9 +117,9 @@ class MailboxSynchronizationTest extends TestCase {
 			new Account($this->account),
 			$inbox,
 			Horde_Imap_Client::SYNC_NEWMSGSUIDS | Horde_Imap_Client::SYNC_FLAGSUIDS | Horde_Imap_Client::SYNC_VANISHEDUIDS,
-			[],
+			false,
 			null,
-			false
+			[]
 		);
 		// Second, put a new message into the mailbox
 		$message = $this->getMessageBuilder()
@@ -172,9 +165,9 @@ class MailboxSynchronizationTest extends TestCase {
 			new Account($this->account),
 			$inbox,
 			Horde_Imap_Client::SYNC_NEWMSGSUIDS | Horde_Imap_Client::SYNC_FLAGSUIDS | Horde_Imap_Client::SYNC_VANISHEDUIDS,
-			[],
+			false,
 			null,
-			false
+			[]
 		);
 		$this->flagMessage($mailbox, $uid, $this->account);
 		$id = $mailManager->getMessageIdForUid($inbox, $uid);
@@ -215,9 +208,9 @@ class MailboxSynchronizationTest extends TestCase {
 			new Account($this->account),
 			$inbox,
 			Horde_Imap_Client::SYNC_NEWMSGSUIDS | Horde_Imap_Client::SYNC_FLAGSUIDS | Horde_Imap_Client::SYNC_VANISHEDUIDS,
-			[],
+			false,
 			null,
-			false
+			[]
 		);
 		$this->deleteMessage($mailbox, $uid, $this->account);
 
@@ -233,5 +226,67 @@ class MailboxSynchronizationTest extends TestCase {
 		// TODO: deleted messages are flagged as changed? could be a testing-only issue
 		// self::assertCount(0, $syncJson['changedMessages']);
 		//		self::assertCount(1, $syncJson['vanishedMessages'], 'Message does not show as vanished, possibly because UID and ID are mixed up above.');
+	}
+
+	public function testUnsolicitedVanishedMessage() {
+		$mailbox = 'INBOX';
+		$message = $this->getMessageBuilder()
+			->from('ralph@buffington@domain.tld')
+			->to('user@domain.tld')
+			->subject('Msg 1')
+			->finish();
+		$uid1 = $this->saveMessage($mailbox, $message, $this->account);
+		$message = $this->getMessageBuilder()
+			->from('ralph@buffington@domain.tld')
+			->to('user@domain.tld')
+			->subject('Msg 2')
+			->finish();
+		$uid2 = $this->saveMessage($mailbox, $message, $this->account);
+		/** @var IMailManager $mailManager */
+		$mailManager = Server::get(IMailManager::class);
+		$mailBoxes = $mailManager->getMailboxes(new Account($this->account));
+		$inbox = null;
+		foreach ($mailBoxes as $mailBox) {
+			if ($mailBox->getName() === 'INBOX') {
+				$inbox = $mailBox;
+				break;
+			}
+		}
+		/** @var SyncService $syncService */
+		$syncService = Server::get(SyncService::class);
+		$syncService->syncMailbox(
+			new Account($this->account),
+			$inbox,
+			Horde_Imap_Client::SYNC_NEWMSGSUIDS | Horde_Imap_Client::SYNC_FLAGSUIDS | Horde_Imap_Client::SYNC_VANISHEDUIDS,
+			false,
+			null,
+			[]
+		);
+
+		// Trigger partial sync to warm the cache.
+		$synchronizer = Server::get(ImapToDbSynchronizer::class);
+		$synchronizer->syncAccount(
+			new Account($this->account),
+			Server::get(LoggerInterface::class),
+		);
+
+		// Assert that there are 2 messages and nothing changes when deleting a message externally
+		$dbMessageMapper = Server::get(DbMessageMapper::class);
+		self::assertCount(2, $dbMessageMapper->findAllUids($inbox));
+		$this->deleteMessagesExternally($mailbox, [$uid1]);
+		self::assertCount(2, $dbMessageMapper->findAllUids($inbox));
+
+		// Receive unsolicited vanished uid
+		$client = $this->getClient($this->account);
+		$mailManager->getSource(
+			$client,
+			new Account($this->account),
+			$mailbox,
+			$uid2,
+		);
+		$client->logout();
+
+		// Assert that the unsolicited change was synced to the db
+		self::assertCount(1, $dbMessageMapper->findAllUids($inbox));
 	}
 }

@@ -1,24 +1,7 @@
 <!--
-  - @copyright 2018 Christoph Wurst <christoph@winzerhof-wurst.at>
-  -
-  - @author 2018 Christoph Wurst <christoph@winzerhof-wurst.at>
-  - @author 2021 Richard Steinmetz <richard@steinmetz.cloud>
-  -
-  - @license AGPL-3.0-or-later
-  -
-  - This program is free software: you can redistribute it and/or modify
-  - it under the terms of the GNU Affero General Public License as
-  - published by the Free Software Foundation, either version 3 of the
-  - License, or (at your option) any later version.
-  -
-  - This program is distributed in the hope that it will be useful,
-  - but WITHOUT ANY WARRANTY; without even the implied warranty of
-  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  - GNU Affero General Public License for more details.
-  -
-  - You should have received a copy of the GNU Affero General Public License
-  - along with this program.  If not, see <http://www.gnu.org/licenses/>.
-  -->
+  - SPDX-FileCopyrightText: 2018 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 
 <template>
 	<NcAvatar v-if="loading || !hasAvatar"
@@ -33,7 +16,8 @@
 </template>
 
 <script>
-import NcAvatar from '@nextcloud/vue/dist/Components/NcAvatar.js'
+import NcAvatar from '@nextcloud/vue/components/NcAvatar'
+import { generateUrl } from '@nextcloud/router'
 import { fetchAvatarUrlMemoized } from '../service/AvatarService.js'
 import logger from '../logger.js'
 
@@ -46,6 +30,14 @@ export default {
 		displayName: {
 			type: String,
 			required: true,
+		},
+		avatar: {
+			type: Object,
+			default: null,
+		},
+		fetchAvatar: {
+			type: Boolean,
+			default: false,
 		},
 		email: {
 			type: String,
@@ -72,14 +64,21 @@ export default {
 		},
 	},
 	async mounted() {
-		if (this.email !== '') {
-			try {
-				this.avatarUrl = await fetchAvatarUrlMemoized(this.email)
-			} catch {
-				logger.debug('Could not fetch avatar', { email: this.email })
+		if (this.avatar) {
+			this.avatarUrl = this.avatar.isExternal
+				? generateUrl('/apps/mail/api/avatars/image/{email}', {
+					email: this.email,
+				})
+				: this.avatar.url
+		} else if (this.fetchAvatar) {
+			if (this.email !== '') {
+				try {
+					this.avatarUrl = await fetchAvatarUrlMemoized(this.email)
+				} catch {
+					logger.debug('Could not fetch avatar', { email: this.email })
+				}
 			}
 		}
-
 		this.loading = false
 	},
 }

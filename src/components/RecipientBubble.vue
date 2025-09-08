@@ -1,29 +1,14 @@
 <!--
-  - @copyright 2020 Christoph Wurst <christoph@winzerhof-wurst.at>
-  -
-  - @author 2020 Christoph Wurst <christoph@winzerhof-wurst.at>
-  -
-  - @license AGPL-3.0-or-later
-  -
-  - This program is free software: you can redistribute it and/or modify
-  - it under the terms of the GNU Affero General Public License as
-  - published by the Free Software Foundation, either version 3 of the
-  - License, or (at your option) any later version.
-  -
-  - This program is distributed in the hope that it will be useful,
-  - but WITHOUT ANY WARRANTY; without even the implied warranty of
-  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  - GNU Affero General Public License for more details.
-  -
-  - You should have received a copy of the GNU Affero General Public License
-  - along with this program.  If not, see <http://www.gnu.org/licenses/>.
-  -->
+  - SPDX-FileCopyrightText: 2020 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 
 <template>
 	<Popover popup-role="dialog" class="contact-popover">
 		<template #trigger="{ attrs }">
 			<UserBubble v-bind="attrs"
 				:display-name="label"
+				:size="26"
 				:avatar-image="avatarUrlAbsolute"
 				@click="onClickOpenContactDialog" />
 		</template>
@@ -123,13 +108,13 @@ import { generateUrl } from '@nextcloud/router'
 
 import { NcUserBubble as UserBubble, NcPopover as Popover, NcSelect, NcButton as ButtonVue } from '@nextcloud/vue'
 
-import IconReply from 'vue-material-design-icons/Reply.vue'
+import IconReply from 'vue-material-design-icons/ReplyOutline.vue'
 import IconAdd from 'vue-material-design-icons/Plus.vue'
-import IconClose from 'vue-material-design-icons/Close.vue'
-import IconClipboard from 'vue-material-design-icons/ClipboardText.vue'
-import IconDetails from 'vue-material-design-icons/Information.vue'
+import IconClose from 'vue-material-design-icons/CloseOutline.vue'
+import IconClipboard from 'vue-material-design-icons/ClipboardTextOutline.vue'
+import IconDetails from 'vue-material-design-icons/InformationOutline.vue'
 import IconCheck from 'vue-material-design-icons/Check.vue'
-import IconUser from 'vue-material-design-icons/Account.vue'
+import IconUser from 'vue-material-design-icons/AccountOutline.vue'
 import { fetchAvatarUrlMemoized } from '../service/AvatarService.js'
 import { addToContact, findMatches, newContact, autoCompleteByName } from '../service/ContactIntegrationService.js'
 import uniqBy from 'lodash/fp/uniqBy.js'
@@ -278,13 +263,15 @@ export default {
 	display: flex;
 	flex-wrap: wrap;
 }
+
 .contact-popover {
-	display: inline-block;
+	display: flex;
 
 	&__email {
 		text-align: center;
 	}
 }
+
 .contact-wrapper {
 	padding:10px;
 	min-width: 300px;
@@ -296,11 +283,11 @@ export default {
 		opacity: 1;
 	}
 }
+
 .contact-input-wrapper {
 	margin-top: 10px;
     margin-bottom: 10px;
-	input,
-	.multiselect {
+	input {
 		width: 100%;
 	}
 }
@@ -308,9 +295,11 @@ export default {
 .contact-existing {
 	font-size: small !important;
 }
+
 :deep(.button-vue__text) {
 	font-weight: normal !important;
 }
+
 :deep(.vs__dropdown-menu) {
 	// Make the dropdown scrollable
 	max-height: 100px;

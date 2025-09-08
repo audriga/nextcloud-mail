@@ -3,25 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @copyright Copyright (c) 2023 Richard Steinmetz <richard@steinmetz.cloud>
- *
- * @author Richard Steinmetz <richard@steinmetz.cloud>
- *
- * @license AGPL-3.0-or-later
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * SPDX-FileCopyrightText: 2023 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 namespace Unit\Service\OutOfOffice;
@@ -41,23 +24,23 @@ class OutOfOfficeParserTest extends TestCase {
 	}
 
 	public function testParseEnabledResponder(): void {
-		$script = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-on.txt");
-		$cleanedScript = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-cleaned.txt");
+		$script = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-on.sieve');
+		$cleanedScript = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-cleaned.sieve');
 
 		$actual = $this->outOfOfficeParser->parseOutOfOfficeState($script);
 		self::assertEquals($script, $actual->getSieveScript());
 		self::assertEquals($cleanedScript, $actual->getUntouchedSieveScript());
 		self::assertEquals(1, $actual->getState()->getVersion());
 		self::assertEquals(true, $actual->getState()->isEnabled());
-		self::assertEquals(new DateTimeImmutable("2022-09-02T00:00:00+0100"), $actual->getState()->getStart());
-		self::assertEquals(new DateTimeImmutable("2022-09-08T23:59:00+0100"), $actual->getState()->getEnd());
-		self::assertEquals("On vacation", $actual->getState()->getSubject());
+		self::assertEquals(new DateTimeImmutable('2022-09-02T00:00:00+0100'), $actual->getState()->getStart());
+		self::assertEquals(new DateTimeImmutable('2022-09-08T23:59:00+0100'), $actual->getState()->getEnd());
+		self::assertEquals('On vacation', $actual->getState()->getSubject());
 		self::assertEquals("I'm on vacation.", $actual->getState()->getMessage());
 	}
 
 	public function testParseDisabledResponder(): void {
-		$script = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-off.txt");
-		$cleanedScript = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-cleaned.txt");
+		$script = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-off.sieve');
+		$cleanedScript = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-cleaned.sieve');
 
 		$actual = $this->outOfOfficeParser->parseOutOfOfficeState($script);
 		self::assertEquals($script, $actual->getSieveScript());
@@ -66,12 +49,12 @@ class OutOfOfficeParserTest extends TestCase {
 		self::assertEquals(false, $actual->getState()->isEnabled());
 		self::assertEquals(null, $actual->getState()->getStart());
 		self::assertEquals(null, $actual->getState()->getEnd());
-		self::assertEquals("On vacation", $actual->getState()->getSubject());
+		self::assertEquals('On vacation', $actual->getState()->getSubject());
 		self::assertEquals("I'm on vacation.", $actual->getState()->getMessage());
 	}
 
 	public function testParseLeaveForeignScriptUntouched(): void {
-		$script = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-cleaned.txt");
+		$script = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-cleaned.sieve');
 
 		$actual = $this->outOfOfficeParser->parseOutOfOfficeState($script);
 		self::assertEquals($script, $actual->getSieveScript());
@@ -80,124 +63,124 @@ class OutOfOfficeParserTest extends TestCase {
 	}
 
 	public function testParseOldEnabledResponder(): void {
-		$script = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-on-no-tz.txt");
-		$cleanedScript = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-cleaned.txt");
+		$script = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-on-no-tz.sieve');
+		$cleanedScript = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-cleaned.sieve');
 
 		$actual = $this->outOfOfficeParser->parseOutOfOfficeState($script);
 		self::assertEquals($script, $actual->getSieveScript());
 		self::assertEquals($cleanedScript, $actual->getUntouchedSieveScript());
 		self::assertEquals(1, $actual->getState()->getVersion());
 		self::assertEquals(true, $actual->getState()->isEnabled());
-		self::assertEquals(new DateTimeImmutable("2022-09-02T00:00:00+0000"), $actual->getState()->getStart());
-		self::assertEquals(new DateTimeImmutable("2022-09-08T00:00:00+0000"), $actual->getState()->getEnd());
-		self::assertEquals("On vacation", $actual->getState()->getSubject());
+		self::assertEquals(new DateTimeImmutable('2022-09-02T00:00:00+0000'), $actual->getState()->getStart());
+		self::assertEquals(new DateTimeImmutable('2022-09-08T00:00:00+0000'), $actual->getState()->getEnd());
+		self::assertEquals('On vacation', $actual->getState()->getSubject());
 		self::assertEquals("I'm on vacation.", $actual->getState()->getMessage());
 	}
 
 	public function testBuildEnabledResponder(): void {
-		$script = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-cleaned.txt");
-		$expected = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-on.txt");
+		$script = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-cleaned.sieve');
+		$expected = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-on.sieve');
 
 		$actual = $this->outOfOfficeParser->buildSieveScript(
 			new OutOfOfficeState(
 				true,
-				new DateTimeImmutable("2022-09-02T00:00:00+0100"),
-				new DateTimeImmutable("2022-09-08T23:59:00+0100"),
-				"On vacation",
+				new DateTimeImmutable('2022-09-02T00:00:00+0100'),
+				new DateTimeImmutable('2022-09-08T23:59:00+0100'),
+				'On vacation',
 				"I'm on vacation.",
 			),
 			$script,
-			["Test Test <test@test.org>", "Test Alias <alias@test.org>"],
+			['Test Test <test@test.org>', 'Test Alias <alias@test.org>'],
 		);
 		self::assertEquals($expected, $actual);
 	}
 
 	public function testBuildEnabledResponderWithoutEndDate(): void {
-		$script = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-cleaned.txt");
-		$expected = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-on-no-end-date.txt");
+		$script = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-cleaned.sieve');
+		$expected = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-on-no-end-date.sieve');
 
 		$actual = $this->outOfOfficeParser->buildSieveScript(
 			new OutOfOfficeState(
 				true,
-				new DateTimeImmutable("2022-09-02T00:00:00+0100"),
+				new DateTimeImmutable('2022-09-02T00:00:00+0100'),
 				null,
-				"On vacation",
+				'On vacation',
 				"I'm on vacation.",
 			),
 			$script,
-			["Test Test <test@test.org>", "Test Alias <alias@test.org>"],
+			['Test Test <test@test.org>', 'Test Alias <alias@test.org>'],
 		);
 		self::assertEquals($expected, $actual);
 	}
 
 	public function testBuildEnabledResponderWithSpecialCharsInMessage(): void {
-		$script = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-cleaned.txt");
-		$expected = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-on-special-chars-message.txt");
+		$script = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-cleaned.sieve');
+		$expected = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-on-special-chars-message.sieve');
 
 		$actual = $this->outOfOfficeParser->buildSieveScript(
 			new OutOfOfficeState(
 				true,
-				new DateTimeImmutable("2022-09-02T00:00:00+0100"),
+				new DateTimeImmutable('2022-09-02T00:00:00+0100'),
 				null,
-				"On vacation",
-				"I'm on vacation.\n\"Hello, World!\"\n\\ escaped backslash",
+				'On vacation',
+				"I'm on vacation.\r\n\"Hello, World!\"\r\n\\ escaped backslash",
 			),
 			$script,
-			["Test Test <test@test.org>", "Test Alias <alias@test.org>"],
+			['Test Test <test@test.org>', 'Test Alias <alias@test.org>'],
 		);
 		self::assertEquals($expected, $actual);
 	}
 
 	public function testBuildEnabledResponderWithSpecialCharsInSubject(): void {
-		$script = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-cleaned.txt");
-		$expected = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-on-special-chars-subject.txt");
+		$script = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-cleaned.sieve');
+		$expected = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-on-special-chars-subject.sieve');
 
 		$actual = $this->outOfOfficeParser->buildSieveScript(
 			new OutOfOfficeState(
 				true,
-				new DateTimeImmutable("2022-09-02T00:00:00+0100"),
+				new DateTimeImmutable('2022-09-02T00:00:00+0100'),
 				null,
-				"On vacation, \"Hello, World!\", \\ escaped backslash",
+				'On vacation, "Hello, World!", \\ escaped backslash',
 				"I'm on vacation.",
 			),
 			$script,
-			["Test Test <test@test.org>", "Test Alias <alias@test.org>"],
+			['Test Test <test@test.org>', 'Test Alias <alias@test.org>'],
 		);
 		self::assertEquals($expected, $actual);
 	}
 
 	public function testBuildEnabledResponderWithSubjectPlaceholder(): void {
-		$script = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-cleaned.txt");
-		$expected = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-on-subject-placeholder.txt");
+		$script = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-cleaned.sieve');
+		$expected = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-on-subject-placeholder.sieve');
 
 		$actual = $this->outOfOfficeParser->buildSieveScript(
 			new OutOfOfficeState(
 				true,
-				new DateTimeImmutable("2022-09-02T00:00:00+0100"),
-				new DateTimeImmutable("2022-09-08T23:59:00+0100"),
+				new DateTimeImmutable('2022-09-02T00:00:00+0100'),
+				new DateTimeImmutable('2022-09-08T23:59:00+0100'),
 				'Re: ${subject}',
 				"I'm on vacation.",
 			),
 			$script,
-			["Test Test <test@test.org>", "Test Alias <alias@test.org>"],
+			['Test Test <test@test.org>', 'Test Alias <alias@test.org>'],
 		);
 		self::assertEquals($expected, $actual);
 	}
 
 	public function testBuildDisabledResponder(): void {
-		$script = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-cleaned.txt");
-		$expected = file_get_contents(__DIR__ . "/../../../data/sieve-vacation-off.txt");
+		$script = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-cleaned.sieve');
+		$expected = file_get_contents(__DIR__ . '/../../../data/sieve-vacation-off.sieve');
 
 		$actual = $this->outOfOfficeParser->buildSieveScript(
 			new OutOfOfficeState(
 				false,
 				null,
 				null,
-				"On vacation",
+				'On vacation',
 				"I'm on vacation.",
 			),
 			$script,
-			["Test Test <test@test.org>", "Test Alias <alias@test.org>"],
+			['Test Test <test@test.org>', 'Test Alias <alias@test.org>'],
 		);
 		self::assertEquals($expected, $actual);
 	}

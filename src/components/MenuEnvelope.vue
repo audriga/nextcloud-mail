@@ -1,3 +1,7 @@
+<!--
+  - SPDX-FileCopyrightText: 2021 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 <!-- Standard Actions menu for Envelopes -->
 <template>
 	<div>
@@ -7,33 +11,12 @@
 				:close-after-click="true"
 				@click.prevent="onToggleImportant">
 				<template #icon>
-					<ImportantIcon :size="20" />
+					<ImportantIcon v-if="isImportant" :size="20" />
+					<ImportantOutlineIcon v-else :size="20" />
 				</template>
 				{{
 					isImportant ? t('mail', 'Unimportant') : t('mail', 'Important')
 				}}
-			</ActionButton>
-			<ActionButton v-if="withReply"
-				:close-after-click="true"
-				@click="onReply">
-				<template #icon>
-					<ReplyAllIcon v-if="hasMultipleRecipients"
-						:title="t('mail', 'Reply all')"
-						:size="20" />
-					<ReplyIcon v-else
-						:title="t('mail', 'Reply')"
-						:size="20" />
-				</template>
-				{{ t('mail', 'Reply') }}
-			</ActionButton>
-			<ActionButton v-if="hasMultipleRecipients"
-				:close-after-click="true"
-				@click="onReply(true)">
-				<template #icon>
-					<ReplyIcon :title="t('mail', 'Reply to sender only')"
-						:size="20" />
-				</template>
-				{{ t('mail', 'Reply to sender only') }}
 			</ActionButton>
 			<ActionButton :close-after-click="true"
 				@click="onForward">
@@ -63,17 +46,6 @@
 				</template>
 				{{ t('mail', 'Edit tags') }}
 			</ActionButton>
-			<ActionButton v-if="withSelect"
-				:close-after-click="true"
-				@click.prevent="toggleSelected">
-				<template #icon>
-					<CheckIcon :title="isSelected ? t('mail', 'Unselect') : t('mail', 'Select')"
-						:size="20" />
-				</template>
-				{{
-					isSelected ? t('mail', 'Unselect') : t('mail', 'Select')
-				}}
-			</ActionButton>
 			<ActionButton v-if="hasDeleteAcl"
 				:close-after-click="true"
 				@click.prevent="$emit('open-move-modal')">
@@ -100,6 +72,15 @@
 						:size="20" />
 				</template>
 				{{ t('mail', 'Unsnooze') }}
+			</ActionButton>
+			<ActionButton v-if="isTranslationEnabled ?? false"
+				:close-after-click="true"
+				@click.prevent="$emit('open-translation-modal')">
+				<template #icon>
+					<TranslationIcon :title="t('mail', 'Translate')"
+						:size="20" />
+				</template>
+				{{ t('mail', 'Translate') }}
 			</ActionButton>
 			<ActionButton :close-after-click="false"
 				@click="localMoreActionsOpen=true">
@@ -138,10 +119,10 @@
 			<ActionButton :close-after-click="true"
 				@click.prevent="$emit('open-event-modal')">
 				<template #icon>
-					<CalendarBlankIcon :title="t('mail', 'Create event')"
+					<CalendarBlankIcon :title="t('mail', 'Reply with meeting')"
 						:size="20" />
 				</template>
-				{{ t('mail', 'Create event') }}
+				{{ t('mail', 'Reply with meeting') }}
 			</ActionButton>
 			<ActionButton :close-after-click="true"
 				@click.prevent="$emit('open-task-modal')">
@@ -160,6 +141,13 @@
 				</template>
 				{{ t('mail', 'View source') }}
 			</ActionButton>
+			<ActionButton :close-after-click="true"
+				@click="onPrint">
+				<template #icon>
+					<PrinterIcon :size="20" />
+				</template>
+				{{ t('mail', 'Print message') }}
+			</ActionButton>
 			<ActionLink :close-after-click="true"
 				:href="exportMessageLink">
 				<template #icon>
@@ -167,6 +155,15 @@
 				</template>
 				{{ t('mail', 'Download message') }}
 			</ActionLink>
+			<ActionButton v-if="isSieveEnabled"
+				:close-after-click="true"
+				@click.prevent="$emit('open-mail-filter-from-envelope')">
+				<template #icon>
+					<FilterIcon :title="t('mail', 'Create mail filter')"
+						:size="20" />
+				</template>
+				{{ t('mail', 'Create mail filter') }}
+			</ActionButton>
 			<ActionLink v-if="debug"
 				:download="threadingFileName"
 				:href="threadingFile"
@@ -227,34 +224,36 @@ import {
 	NcActionButton as ActionButton,
 	NcActionLink as ActionLink,
 } from '@nextcloud/vue'
-import AlertOctagonIcon from 'vue-material-design-icons/AlertOctagon.vue'
+import AlertOctagonIcon from 'vue-material-design-icons/AlertOctagonOutline.vue'
 import { Base64 } from 'js-base64'
 import { buildRecipients as buildReplyRecipients } from '../ReplyBuilder.js'
-import CalendarBlankIcon from 'vue-material-design-icons/CalendarBlank.vue'
+import CalendarBlankIcon from 'vue-material-design-icons/CalendarBlankOutline.vue'
 import CheckIcon from 'vue-material-design-icons/Check.vue'
 import ChevronLeft from 'vue-material-design-icons/ChevronLeft.vue'
 import DotsHorizontalIcon from 'vue-material-design-icons/DotsHorizontal.vue'
-import DownloadIcon from 'vue-material-design-icons/Download.vue'
+import DownloadIcon from 'vue-material-design-icons/TrayArrowDown.vue'
+import PrinterIcon from 'vue-material-design-icons/PrinterOutline.vue'
+import TranslationIcon from 'vue-material-design-icons/Translate.vue'
 import { mailboxHasRights } from '../util/acl.js'
 import { generateUrl } from '@nextcloud/router'
-import InformationIcon from 'vue-material-design-icons/Information.vue'
-import ImportantIcon from './icons/ImportantIcon.vue'
+import InformationIcon from 'vue-material-design-icons/InformationOutline.vue'
+import ImportantIcon from 'vue-material-design-icons/LabelVariant.vue'
+import ImportantOutlineIcon from 'vue-material-design-icons/LabelVariantOutline.vue'
 import OpenInNewIcon from 'vue-material-design-icons/OpenInNew.vue'
 import PlusIcon from 'vue-material-design-icons/Plus.vue'
-import ReplyIcon from 'vue-material-design-icons/Reply.vue'
-import ReplyAllIcon from 'vue-material-design-icons/ReplyAll.vue'
 import TaskIcon from 'vue-material-design-icons/CheckboxMarkedCirclePlusOutline.vue'
-import ShareIcon from 'vue-material-design-icons/Share.vue'
+import ShareIcon from 'vue-material-design-icons/ShareOutline.vue'
 import { showError, showSuccess } from '@nextcloud/dialogs'
-
-import TagIcon from 'vue-material-design-icons/Tag.vue'
-import CalendarClock from 'vue-material-design-icons/CalendarClock.vue'
-import NcActionSeparator from '@nextcloud/vue/dist/Components/NcActionSeparator.js'
-import NcActionInput from '@nextcloud/vue/dist/Components/NcActionInput.js'
+import TagIcon from 'vue-material-design-icons/TagOutline.vue'
+import CalendarClock from 'vue-material-design-icons/CalendarClockOutline.vue'
+import NcActionSeparator from '@nextcloud/vue/components/NcActionSeparator'
+import NcActionInput from '@nextcloud/vue/components/NcActionInput'
 import AlarmIcon from 'vue-material-design-icons/Alarm.vue'
 import logger from '../logger.js'
 import moment from '@nextcloud/moment'
-import { mapGetters } from 'vuex'
+import { mapStores, mapState } from 'pinia'
+import useMainStore from '../store/mainStore.js'
+import FilterIcon from 'vue-material-design-icons/FilterOutline.vue'
 
 export default {
 	name: 'MenuEnvelope',
@@ -270,17 +269,19 @@ export default {
 		ChevronLeft,
 		CheckIcon,
 		DotsHorizontalIcon,
+		TranslationIcon,
 		DownloadIcon,
 		InformationIcon,
 		OpenInNewIcon,
 		PlusIcon,
-		ReplyIcon,
-		ReplyAllIcon,
 		ShareIcon,
 		TagIcon,
 		ImportantIcon,
+		ImportantOutlineIcon,
 		TaskIcon,
 		AlarmIcon,
+		PrinterIcon,
+		FilterIcon,
 	},
 	props: {
 		envelope: {
@@ -297,17 +298,6 @@ export default {
 			type: Boolean,
 			required: false,
 		},
-		isSelected: {
-			// Indicates if the envelope is currently selected
-			type: Boolean,
-			default: false,
-		},
-		withReply: {
-			// "Reply" action should only appear in envelopes from the envelope list
-			// (Because in thread envelopes, this action is already set as primary button of this menu)
-			type: Boolean,
-			default: true,
-		},
 		withSelect: {
 			// "Select" action should only appear in envelopes from the envelope list
 			type: Boolean,
@@ -317,6 +307,11 @@ export default {
 			// "Show source" action should only appear in thread envelopes
 			type: Boolean,
 			default: true,
+		},
+		isTranslationAvailable: {
+			type: Boolean,
+			required: false,
+			default: false,
 		},
 	},
 	data() {
@@ -329,12 +324,14 @@ export default {
 		}
 	},
 	computed: {
-		...mapGetters([
+		...mapStores(useMainStore),
+		...mapState(useMainStore, [
 			'isSnoozeDisabled',
+			'isTranslationEnabled',
 		]),
 		account() {
 			const accountId = this.envelope.accountId ?? this.mailbox.accountId
-			return this.$store.getters.getAccount(accountId)
+			return this.mainStore.getAccount(accountId)
 		},
 		hasMultipleRecipients() {
 			if (!this.account) {
@@ -367,7 +364,7 @@ export default {
 			return this.envelope.flags.seen
 		},
 		isImportant() {
-			return this.$store.getters
+			return this.mainStore
 				.getEnvelopeTags(this.envelope.databaseId)
 				.some((tag) => tag.imapLabel === '$label1')
 		},
@@ -444,7 +441,7 @@ export default {
 	},
 	methods: {
 		onForward() {
-			this.$store.dispatch('startComposerSession', {
+			this.mainStore.startComposerSession({
 				reply: {
 					mode: 'forward',
 					data: this.envelope,
@@ -460,11 +457,11 @@ export default {
 			logger.info(`snoozing message ${this.envelope.databaseId}`)
 
 			if (!this.account.snoozeMailboxId) {
-				await this.$store.dispatch('createAndSetSnoozeMailbox', this.account)
+				await this.mainStore.createAndSetSnoozeMailbox(this.account)
 			}
 
 			try {
-				await this.$store.dispatch('snoozeMessage', {
+				await this.mainStore.snoozeMessage({
 					id: this.envelope.databaseId,
 					unixTimestamp: timestamp / 1000,
 					destMailboxId: this.account.snoozeMailboxId,
@@ -484,7 +481,7 @@ export default {
 			logger.info(`unSnoozing message ${this.envelope.databaseId}`)
 
 			try {
-				await this.$store.dispatch('unSnoozeMessage', {
+				await this.mainStore.unSnoozeMessage({
 					id: this.envelope.databaseId,
 				})
 				showSuccess(t('mail', 'Message was unsnoozed'))
@@ -494,16 +491,16 @@ export default {
 			}
 		},
 		onToggleFlagged() {
-			this.$store.dispatch('toggleEnvelopeFlagged', this.envelope)
+			this.mainStore.toggleEnvelopeFlagged(this.envelope)
 		},
 		onToggleImportant() {
-			this.$store.dispatch('toggleEnvelopeImportant', this.envelope)
+			this.mainStore.toggleEnvelopeImportant(this.envelope)
 		},
 		onToggleSeen() {
-			this.$store.dispatch('toggleEnvelopeSeen', { envelope: this.envelope })
+			this.mainStore.toggleEnvelopeSeen({ envelope: this.envelope })
 		},
 		async onToggleJunk() {
-			const removeEnvelope = await this.$store.dispatch('moveEnvelopeToJunk', this.envelope)
+			const removeEnvelope = await this.mainStore.moveEnvelopeToJunk(this.envelope)
 
 			/**
 			 * moveEnvelopeToJunk returns true if the envelope should be moved to a different mailbox.
@@ -522,7 +519,7 @@ export default {
 				await this.$emit('delete', this.envelope.databaseId)
 			}
 
-			await this.$store.dispatch('toggleEnvelopeJunk', {
+			await this.mainStore.toggleEnvelopeJunk({
 				envelope: this.envelope,
 				removeEnvelope,
 			})
@@ -531,12 +528,12 @@ export default {
 			this.$emit('update:selected')
 		},
 		async forwardSelectedAsAttachment() {
-			await this.$store.dispatch('startComposerSession', {
+			await this.mainStore.startComposerSession({
 				forwardedMessages: [this.envelope.databaseId],
 			})
 		},
 		onReply(onlySender = false) {
-			this.$store.dispatch('startComposerSession', {
+			this.mainStore.startComposerSession({
 				reply: {
 					mode: onlySender ? 'reply' : 'replyAll',
 					data: this.envelope,
@@ -544,7 +541,7 @@ export default {
 			})
 		},
 		async onOpenEditAsNew() {
-			await this.$store.dispatch('startComposerSession', {
+			await this.mainStore.startComposerSession({
 				templateMessageId: this.envelope.databaseId,
 				data: this.envelope,
 			})
@@ -557,6 +554,12 @@ export default {
 		},
 		setCustomSnooze() {
 			this.onSnooze(this.customSnoozeDateTime.valueOf())
+		},
+		onPrint() {
+			this.$emit('print')
+		},
+		isSieveEnabled() {
+			return this.account.sieveEnabled
 		},
 	},
 }

@@ -1,13 +1,22 @@
+/**
+ * SPDX-FileCopyrightText: 2018 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 const path = require('path')
+const webpack = require('webpack')
 const CKEditorWebpackPlugin = require('@ckeditor/ckeditor5-dev-webpack-plugin')
-const { styles } = require('@ckeditor/ckeditor5-dev-utils')
 const { VueLoaderPlugin } = require('vue-loader')
 const BabelLoaderExcludeNodeModulesExcept = require('babel-loader-exclude-node-modules-except')
 const NodePolyfillPlugin = require('node-polyfill-webpack-plugin')
+const { IgnorePlugin } = require('webpack')
 
-function getPostCssConfig(ckEditorOpts) {
+const appName = 'mail'
+const appVersion = require('./package.json').version
+
+async function getPostCssConfig(ckEditorOpts) {
 	// CKEditor is not compatbile with postcss@8 and postcss-loader@4 despite stating so.
 	// Adapted from https://github.com/ckeditor/ckeditor5/issues/8112#issuecomment-960579351
+	const { styles } = await import('@ckeditor/ckeditor5-dev-utils')
 	const { plugins, ...rest } = styles.getPostCssConfig(ckEditorOpts);
 	return { postcssOptions: { plugins }, ...rest };
 };
@@ -26,12 +35,21 @@ const plugins = [
 		// Console is available in the web-browser
 		excludeAliases: ['console'],
 	}),
+
+	// Fix warning when bundling moment locales
+	new IgnorePlugin({
+		resourceRegExp: /^\.\/locale$/,
+		contextRegExp: /moment\/min$/,
+	}),
+	new webpack.DefinePlugin({
+		appName: JSON.stringify(appName),
+		appVersion: JSON.stringify(appVersion),
+	}),
 ]
 
-module.exports = {
+module.exports = async () => ({
 	entry: {
 		autoredirect: path.join(__dirname, 'src/autoredirect.js'),
-		dashboard: path.join(__dirname, 'src/main-dashboard.js'),
 		mail: path.join(__dirname, 'src/main.js'),
 		oauthpopup: path.join(__dirname, 'src/main-oauth-popup.js'),
 		settings: path.join(__dirname, 'src/main-settings'),
@@ -55,6 +73,11 @@ module.exports = {
 			{
 				test: /\.vue$/,
 				loader: 'vue-loader',
+			},
+			{
+				test: /\.tsx?$/,
+				use: 'ts-loader',
+				exclude: /node_modules/,
 			},
 			{
 				test: /\.js$/,
@@ -95,7 +118,7 @@ module.exports = {
 			{
 				test: /ckeditor5-[^/\\]+[/\\].+\.css$/,
 				loader: 'postcss-loader',
-				options: getPostCssConfig({
+				options: await getPostCssConfig({
 					themeImporter: {
 						themePath: require.resolve('@ckeditor/ckeditor5-theme-lark'),
 					},
@@ -106,7 +129,7 @@ module.exports = {
 	},
 	plugins,
 	resolve: {
-		extensions: ['*', '.js', '.vue', '.json'],
+		extensions: ['*', '.tsx', '.ts', '.js', '.vue', '.json'],
 		symlinks: false,
 	},
-}
+})

@@ -3,22 +3,9 @@
 declare(strict_types=1);
 
 /**
- * @author Christoph Wurst <christoph@winzerhof-wurst.at>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2016-2024 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-FileCopyrightText: 2016 ownCloud, Inc.
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\Model;
@@ -30,7 +17,7 @@ use OCA\Mail\Db\LocalAttachment;
 use OCP\Files\File;
 use OCP\Files\SimpleFS\ISimpleFile;
 
-class Message implements IMessage {
+final class Message implements IMessage {
 	use ConvertAddresses;
 
 	/** @var string */
@@ -76,6 +63,7 @@ class Message implements IMessage {
 	 *
 	 * @return string|null
 	 */
+	#[\Override]
 	public function getMessageId() {
 		return null;
 	}
@@ -85,6 +73,7 @@ class Message implements IMessage {
 	 *
 	 * @return string[]
 	 */
+	#[\Override]
 	public function getFlags(): array {
 		return $this->flags;
 	}
@@ -94,6 +83,7 @@ class Message implements IMessage {
 	 *
 	 * @return void
 	 */
+	#[\Override]
 	public function setFlags(array $flags) {
 		$this->flags = $flags;
 	}
@@ -101,6 +91,7 @@ class Message implements IMessage {
 	/**
 	 * @return AddressList
 	 */
+	#[\Override]
 	public function getFrom(): AddressList {
 		return $this->from;
 	}
@@ -110,6 +101,7 @@ class Message implements IMessage {
 	 *
 	 * @return void
 	 */
+	#[\Override]
 	public function setFrom(AddressList $from) {
 		$this->from = $from;
 	}
@@ -117,6 +109,7 @@ class Message implements IMessage {
 	/**
 	 * @return AddressList
 	 */
+	#[\Override]
 	public function getTo(): AddressList {
 		return $this->to;
 	}
@@ -126,6 +119,7 @@ class Message implements IMessage {
 	 *
 	 * @return void
 	 */
+	#[\Override]
 	public function setTo(AddressList $to) {
 		$this->to = $to;
 	}
@@ -133,6 +127,7 @@ class Message implements IMessage {
 	/**
 	 * @return AddressList
 	 */
+	#[\Override]
 	public function getReplyTo(): AddressList {
 		return $this->replyTo;
 	}
@@ -142,6 +137,7 @@ class Message implements IMessage {
 	 *
 	 * @return void
 	 */
+	#[\Override]
 	public function setReplyTo(AddressList $replyTo) {
 		$this->replyTo = $replyTo;
 	}
@@ -149,6 +145,7 @@ class Message implements IMessage {
 	/**
 	 * @return AddressList
 	 */
+	#[\Override]
 	public function getCC(): AddressList {
 		return $this->cc;
 	}
@@ -158,6 +155,7 @@ class Message implements IMessage {
 	 *
 	 * @return void
 	 */
+	#[\Override]
 	public function setCC(AddressList $cc) {
 		$this->cc = $cc;
 	}
@@ -165,6 +163,7 @@ class Message implements IMessage {
 	/**
 	 * @return AddressList
 	 */
+	#[\Override]
 	public function getBCC(): AddressList {
 		return $this->bcc;
 	}
@@ -174,6 +173,7 @@ class Message implements IMessage {
 	 *
 	 * @return void
 	 */
+	#[\Override]
 	public function setBcc(AddressList $bcc) {
 		$this->bcc = $bcc;
 	}
@@ -181,10 +181,12 @@ class Message implements IMessage {
 	/**
 	 * @return string|null
 	 */
+	#[\Override]
 	public function getInReplyTo() {
 		return $this->inReplyTo;
 	}
 
+	#[\Override]
 	public function setInReplyTo(string $id) {
 		$this->inReplyTo = $id;
 	}
@@ -192,6 +194,7 @@ class Message implements IMessage {
 	/**
 	 * @return string
 	 */
+	#[\Override]
 	public function getSubject(): string {
 		return $this->subject;
 	}
@@ -201,6 +204,7 @@ class Message implements IMessage {
 	 *
 	 * @return void
 	 */
+	#[\Override]
 	public function setSubject(string $subject) {
 		$this->subject = $subject;
 	}
@@ -208,6 +212,7 @@ class Message implements IMessage {
 	/**
 	 * @return string
 	 */
+	#[\Override]
 	public function getContent(): string {
 		return $this->content;
 	}
@@ -217,6 +222,7 @@ class Message implements IMessage {
 	 *
 	 * @return void
 	 */
+	#[\Override]
 	public function setContent(string $content) {
 		$this->content = $content;
 	}
@@ -224,6 +230,7 @@ class Message implements IMessage {
 	/**
 	 * @return Horde_Mime_Part[]
 	 */
+	#[\Override]
 	public function getAttachments(): array {
 		return $this->attachments;
 	}
@@ -232,6 +239,7 @@ class Message implements IMessage {
 	 * Adds a file that's coming from another email's attachment (typical
 	 * use case is forwarding a message)
 	 */
+	#[\Override]
 	public function addRawAttachment(string $name, string $content): void {
 		$mime = 'application/octet-stream';
 		if (extension_loaded('fileinfo')) {
@@ -251,6 +259,7 @@ class Message implements IMessage {
 	 *
 	 * @return void
 	 */
+	#[\Override]
 	public function addEmbeddedMessageAttachment(string $name, string $content): void {
 		$this->createAttachmentDetails($name, $content, 'message/rfc822');
 	}
@@ -260,6 +269,7 @@ class Message implements IMessage {
 	 *
 	 * @return void
 	 */
+	#[\Override]
 	public function addAttachmentFromFiles(File $file): void {
 		$this->createAttachmentDetails($file->getName(), $file->getContent(), $file->getMimeType());
 	}
@@ -270,6 +280,7 @@ class Message implements IMessage {
 	 *
 	 * @return void
 	 */
+	#[\Override]
 	public function addLocalAttachment(LocalAttachment $attachment, ISimpleFile $file): void {
 		$this->createAttachmentDetails($attachment->getFileName(), $file->getContent(), $attachment->getMimeType());
 	}

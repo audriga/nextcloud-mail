@@ -1,5 +1,9 @@
+<!--
+  - SPDX-FileCopyrightText: 2018 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 <template>
-	<NcContent app-name="mail">
+	<NcContent app-name="mail" class="mail-content">
 		<Navigation />
 		<Outbox v-if="$route.name === 'outbox'" />
 		<MailboxThread v-else-if="activeAccount"
@@ -26,7 +30,8 @@ import MailboxThread from '../components/MailboxThread.vue'
 import Navigation from '../components/Navigation.vue'
 import Outbox from '../components/Outbox.vue'
 import ComposerSessionIndicator from '../components/ComposerSessionIndicator.vue'
-import { mapGetters } from 'vuex'
+import { mapState, mapStores } from 'pinia'
+import useMainStore from '../store/mainStore.js'
 
 export default {
 	name: 'Home',
@@ -42,19 +47,19 @@ export default {
 	data() {
 		return {
 			hasComposerSession: false,
-			accounts: null,
 		}
 	},
 	computed: {
-		...mapGetters(['composerSessionId']),
+		...mapStores(useMainStore),
+		...mapState(useMainStore, ['composerSessionId']),
+		accounts() {
+			return this.mainStore.getAccounts.filter((a) => !a.isUnified)
+		},
 		activeAccount() {
-			return this.$store.getters.getAccount(this.activeMailbox?.accountId)
+			return this.mainStore.getAccount(this.activeMailbox?.accountId)
 		},
 		activeMailbox() {
-			return this.$store.getters.getMailbox(this.$route.params.mailboxId)
-		},
-		menu() {
-			return this.buildMenu()
+			return this.mainStore.getMailbox(this.$route.params.mailboxId)
 		},
 	},
 	watch: {
@@ -77,23 +82,23 @@ export default {
 		},
 	},
 	async beforeMount() {
-		const accounts = this.$store.getters.accounts.filter((a) => !a.isUnified)
-		this.accounts = await Promise.all(
-			 accounts.map(async (account) => {
-				return { ...account, connectionStatus: await testAccountConnection(account.id) }
-			}))
-
+		for (const account of this.accounts) {
+			await this.mainStore.patchAccountMutation({
+				account,
+				data: { connectionStatus: await testAccountConnection(account.accountId) },
+			})
+		}
 	},
 	created() {
-		const accounts = this.$store.getters.accounts
-		let startMailboxId = this.$store.getters.getPreference('start-mailbox-id')
-		if (startMailboxId && !this.$store.getters.getMailbox(startMailboxId)) {
+		const accounts = this.mainStore.getAccounts
+		let startMailboxId = this.mainStore.getPreference('start-mailbox-id')
+		if (startMailboxId && !this.mainStore.getMailbox(startMailboxId)) {
 			// The start ID is set but the mailbox doesn't exist anymore
 			startMailboxId = null
 		}
 
 		if (this.$route.name === 'home' && accounts.length > 1 && startMailboxId) {
-			logger.debug('Loading start mailbox', { id: startMailboxId })
+			logger.debug('Loading start folder', { id: startMailboxId })
 			this.$router.replace({
 				name: 'mailbox',
 				params: {
@@ -104,7 +109,7 @@ export default {
 			// Show first account
 			const firstAccount = accounts[0]
 			// FIXME: this assumes that there's at least one mailbox
-			const firstMailbox = this.$store.getters.getMailboxes(firstAccount.id)[0]
+			const firstMailbox = this.mainStore.getMailboxes(firstAccount.id)[0]
 
 			console.debug('loading first mailbox of first account', firstAccount.id, firstMailbox.databaseId)
 
@@ -128,9 +133,9 @@ export default {
 			// Show first account
 			const firstAccount = accounts[0]
 			// FIXME: this assumes that there's at least one mailbox
-			const firstMailbox = this.$store.getters.getMailboxes(firstAccount.id)[0]
+			const firstMailbox = this.mainStore.getMailboxes(firstAccount.id)[0]
 
-			console.debug('loading composer with first account and mailbox', firstAccount.id, firstMailbox.id)
+			console.debug('loading composer with first account and folder', firstAccount.id, firstMailbox.id)
 
 			this.$router.replace({
 				name: 'message',
@@ -166,17 +171,33 @@ export default {
 
 </script>
 
+<style lang="scss">
+@media print {
+	body {
+		/*
+		 * Nextcloud uses an inner scrolling but we need the
+		 * full page to scroll for print
+		 */
+		position: relative;
+		height: initial;
+	}
+}
+</style>
+
 <style lang="scss" scoped>
+@media print {
+	.mail-content {
+		height: initial;
+		/* needs important because of a more specific selector */
+		position: relative !important;
+	}
+}
+
 :deep(.app-content-details) {
 	margin: 0 auto;
-	max-width: 900px;
 	display: flex;
 	flex-direction: column;
 	flex: 1 1 100%;
 	min-width: 70%;
-}
-// Align the appNavigation toggle with the apps header toolbar
-:deep(button.app-navigation-toggle) {
-	top: 8px;
 }
 </style>

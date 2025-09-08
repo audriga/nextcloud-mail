@@ -1,20 +1,6 @@
 /**
- * @author Daniel Kesselberg <mail@danielkesselberg.de>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2023 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 import Command from '@ckeditor/ckeditor5-core/src/command.js'
@@ -33,29 +19,42 @@ export default class InsertItemCommand extends Command {
 			// @TODO Add error to handle such a situation in the callback
 			return
 		}
-
 		const range = editor.model.createRange(
 			currentPosition.getShiftedBy(-5),
 			currentPosition,
 		)
-
 		// Iterate over all items in this range:
 		const walker = range.getWalker({ shallow: false, direction: 'backward' })
 
 		for (const value of walker) {
 			if (value.type === 'text' && value.item.data.includes(trigger)) {
 				writer.remove(value.item)
-
 				const text = value.item.data
 				const lastSlash = text.lastIndexOf(trigger)
-
 				const textElement = writer.createElement('paragraph')
 				writer.insertText(text.substring(0, lastSlash), textElement)
 				editor.model.insertContent(textElement)
 
-				const itemElement = writer.createElement('paragraph')
-				writer.insertText(item, itemElement)
-				editor.model.insertContent(itemElement)
+				if (trigger === '@') {
+					const mailtoHref = `mailto:${item.email}`
+					const anchorText = `@${item.label}`
+					const textElement = writer.createText(anchorText, { linkHref: mailtoHref })
+					editor.model.insertContent(textElement)
+				} else if (trigger === '!') {
+					if (item.isHtml) {
+						const viewFragment = editor.data.processor.toView(item.content)
+						const modelFragment = editor.data.toModel(viewFragment)
+						editor.model.insertContent(modelFragment)
+					} else {
+						const itemElement = writer.createElement('paragraph')
+						writer.insertText(item.content, itemElement)
+						editor.model.insertContent(itemElement)
+					}
+				} else {
+					const itemElement = writer.createElement('paragraph')
+					writer.insertText(item, itemElement)
+					editor.model.insertContent(itemElement)
+				}
 
 				return
 			}

@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+/**
+ * SPDX-FileCopyrightText: 2021 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 namespace OCA\Mail\Migration;
 
 use Closure;
@@ -21,6 +26,7 @@ class Version1105Date20210922104324 extends SimpleMigrationStep {
 		$this->logger = $logger;
 	}
 
+	#[\Override]
 	public function postSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
 		$qb = $this->connection->getQueryBuilder();
 		$qb->select('accounts.id')

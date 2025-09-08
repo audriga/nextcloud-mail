@@ -1,24 +1,7 @@
 <!--
-  - @copyright 2021 Greta Doci <gretadoci@gmail.com>
-  -
-  - @author 2021 Greta Doci <gretadoci@gmail.com>
-  - @author 2022 Jonas Sulzer <jonas@violoncello.ch>
-  -
-  - @license AGPL-3.0-or-later
-  -
-  - This program is free software: you can redistribute it and/or modify
-  - it under the terms of the GNU Affero General Public License as
-  - published by the Free Software Foundation, either version 3 of the
-  - License, or (at your option) any later version.
-  -
-  - This program is distributed in the hope that it will be useful,
-  - but WITHOUT ANY WARRANTY; without even the implied warranty of
-  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  - GNU Affero General Public License for more details.
-  -
-  - You should have received a copy of the GNU Affero General Public License
-  - along with this program.  If not, see <http://www.gnu.org/licenses/>.
-  -->
+  - SPDX-FileCopyrightText: 2021 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 
 <template>
 	<DeleteTagModal v-if="deleteTagModal"
@@ -69,10 +52,12 @@
 import { NcModal as Modal, NcActionText as ActionText, NcActionInput as ActionInput, NcLoadingIcon as IconLoading, NcButton } from '@nextcloud/vue'
 import DeleteTagModal from './DeleteTagModal.vue'
 import TagItem from './TagItem.vue'
-import IconTag from 'vue-material-design-icons/Tag.vue'
+import IconTag from 'vue-material-design-icons/TagOutline.vue'
 import IconAdd from 'vue-material-design-icons/Plus.vue'
 import { showError, showInfo } from '@nextcloud/dialogs'
 import { hiddenTags } from './tags.js'
+import { mapStores } from 'pinia'
+import useMainStore from '../store/mainStore.js'
 
 function randomColor() {
 	let randomHexColor = ((1 << 24) * Math.random() | 0).toString(16)
@@ -117,8 +102,9 @@ export default {
 		}
 	},
 	computed: {
+		...mapStores(useMainStore),
 		tags() {
-			return this.$store.getters.getTags.filter((tag) => tag.imapLabel !== '$label1' && !(tag.displayName.toLowerCase() in hiddenTags)).sort((a, b) => {
+			return this.mainStore.getTags.filter((tag) => tag.imapLabel !== '$label1' && !(tag.displayName.toLowerCase() in hiddenTags)).sort((a, b) => {
 				if (a.isDefaultTag && !b.isDefaultTag) {
 					return -1
 				}
@@ -151,7 +137,7 @@ export default {
 		isSet(imapLabel) {
 			return this.envelopes.some(
 				(envelope) => (
-					this.$store.getters.getEnvelopeTags(envelope.databaseId).some(
+					this.mainStore.getEnvelopeTags(envelope.databaseId).some(
 						tag => tag.imapLabel === imapLabel,
 					)
 				),
@@ -172,7 +158,7 @@ export default {
 				showError(this.t('mail', 'Tag name is a hidden system tag'))
 				return
 			}
-			if (this.$store.getters.getTags.some(tag => tag.displayName === displayName)) {
+			if (this.mainStore.getTags.some(tag => tag.displayName === displayName)) {
 				showError(this.t('mail', 'Tag already exists'))
 				return
 			}
@@ -181,7 +167,7 @@ export default {
 				return
 			}
 			try {
-				await this.$store.dispatch('createTag', {
+				await this.mainStore.createTag({
 					displayName,
 					color: randomColor(displayName),
 				})
@@ -218,7 +204,7 @@ export default {
 			const displayName = event.target.querySelector('input[type=text]').value
 
 			try {
-				await this.$store.dispatch('updateTag', {
+				await this.mainStore.updateTag({
 					tag,
 					displayName,
 					color: tag.color,
@@ -250,19 +236,23 @@ export default {
 	max-height: calc(100vh - 210px);
 	overflow-y: auto;
 }
+
 :deep(.modal-container) {
 	width: auto !important;
 }
+
 .icon-colorpicker {
 	background-image: var(--icon-add-fff);
 }
+
 .tagButton {
 	display: inline-block;
-	margin-left: 10px;
+	margin-inline-start: 10px;
 }
+
 .tag-title {
 	margin-top: 20px;
-	margin-left: 10px;
+	margin-inline-start: 10px;
 }
 
 .create-tag {

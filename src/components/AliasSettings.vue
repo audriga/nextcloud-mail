@@ -1,23 +1,7 @@
 <!--
-  - @copyright 2020 Patrick Bender <patrick@bender-it-services.de>
-  -
-  - @author 2023 Richard Steinmetz <richard@steinmetz.cloud>
-  -
-  - @license AGPL-3.0-or-later
-  -
-  - This program is free software: you can redistribute it and/or modify
-  - it under the terms of the GNU Affero General Public License as
-  - published by the Free Software Foundation, either version 3 of the
-  - License, or (at your option) any later version.
-  -
-  - This program is distributed in the hope that it will be useful,
-  - but WITHOUT ANY WARRANTY; without even the implied warranty of
-  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  - GNU Affero General Public License for more details.
-  -
-  - You should have received a copy of the GNU Affero General Public License
-  - along with this program.  If not, see <http://www.gnu.org/licenses/>.
-  -->
+  - SPDX-FileCopyrightText: 2020 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 
 <template>
 	<div>
@@ -96,9 +80,11 @@
 <script>
 import { NcButton as ButtonVue, NcLoadingIcon as IconLoading } from '@nextcloud/vue'
 import IconCheck from 'vue-material-design-icons/Check.vue'
-import IconRename from 'vue-material-design-icons/Pencil.vue'
+import IconRename from 'vue-material-design-icons/PencilOutline.vue'
 import logger from '../logger.js'
 import AliasForm from './AliasForm.vue'
+import useMainStore from '../store/mainStore.js'
+import { mapStores } from 'pinia'
 
 export default {
 	name: 'AliasSettings',
@@ -124,6 +110,7 @@ export default {
 		}
 	},
 	computed: {
+		...mapStores(useMainStore),
 		aliases() {
 			return this.account.aliases
 		},
@@ -140,7 +127,7 @@ export default {
 		async createAlias() {
 			this.loading = true
 
-			await this.$store.dispatch('createAlias', {
+			await this.mainStore.createAlias({
 				account: this.account,
 				alias: this.newAlias,
 				name: this.newName,
@@ -163,7 +150,7 @@ export default {
 
 		async updateAlias(aliasId, newAlias) {
 			const alias = this.aliases.find((alias) => alias.id === aliasId)
-			await this.$store.dispatch('updateAlias', {
+			await this.mainStore.updateAlias({
 				account: this.account,
 				aliasId: alias.id,
 				alias: newAlias.alias,
@@ -172,7 +159,7 @@ export default {
 			})
 		},
 		async deleteAlias(aliasId) {
-			await this.$store.dispatch('deleteAlias', {
+			await this.mainStore.deleteAlias({
 				account: this.account,
 				aliasId,
 			})
@@ -183,12 +170,12 @@ export default {
 
 <style lang="scss" scoped>
 .primary {
-	padding-left: 26px;
+	padding-inline-start: 26px;
 	background-position: 6px;
 	color: var(--color-main-background);
 
 	&:after {
-		left: 14px;
+		inset-inline-start: 14px;
 	}
 }
 
@@ -207,6 +194,7 @@ export default {
 input {
 	width: 195px;
 }
+
 .button-vue:deep() {
 	display: inline-block !important;
 	margin-top: 4px !important;

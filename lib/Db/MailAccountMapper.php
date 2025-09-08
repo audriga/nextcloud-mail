@@ -3,25 +3,9 @@
 declare(strict_types=1);
 
 /**
- * @author Christoph Wurst <christoph@winzerhof-wurst.at>
- * @author Christoph Wurst <wurst.christoph@gmail.com>
- * @author Lukas Reschke <lukas@owncloud.com>
- * @author Thomas Müller <thomas.mueller@tmit.eu>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2016-2024 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-FileCopyrightText: 2014-2016 ownCloud, Inc.
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\Db;
@@ -87,7 +71,7 @@ class MailAccountMapper extends QBMapper {
 	 *
 	 * @param string $userId the id of the user that we want to find
 	 *
-	 * @return MailAccount[]
+	 * @return list<MailAccount>
 	 */
 	public function findByUserId(string $userId): array {
 		$qb = $this->db->getQueryBuilder();
@@ -95,6 +79,27 @@ class MailAccountMapper extends QBMapper {
 			->select('*')
 			->from($this->getTableName())
 			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+
+		return $this->findEntities($query);
+	}
+
+	/**
+	 * Finds a mail account(s) by user id and mail address
+	 *
+	 * @since 4.0.0
+	 *
+	 * @param string $userId system user id
+	 * @param string $address mail address (e.g. test@example.com)
+	 *
+	 * @return MailAccount[]
+	 */
+	public function findByUserIdAndAddress(string $userId, string $address): array {
+		$qb = $this->db->getQueryBuilder();
+		$query = $qb
+			->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('email', $qb->createNamedParameter($address)));
 
 		return $this->findEntities($query);
 	}
@@ -228,5 +233,25 @@ class MailAccountMapper extends QBMapper {
 			->from($this->getTableName());
 
 		return $this->findEntities($query);
+	}
+
+	public function getRandomAccountIdsByImapHost(string $host, int $limit = 3): array {
+		$query = $this->db->getQueryBuilder();
+		$query->select('id')
+			->from($this->getTableName())
+			->where($query->expr()->eq('inbound_host', $query->createNamedParameter($host), IQueryBuilder::PARAM_STR))
+			->setMaxResults(1000);
+		$result = $query->executeQuery();
+		$ids = $result->fetchAll(\PDO::FETCH_COLUMN);
+		$result->closeCursor();
+		// Pick 3 random accounts or any available
+		if ($ids !== [] && count($ids) >= $limit) {
+			$rids = array_rand($ids, $limit);
+			if (!is_array($rids)) {
+				$rids = [$rids];
+			}
+			return array_intersect_key($ids, array_values($rids));
+		}
+		return $ids;
 	}
 }

@@ -3,25 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @copyright Copyright (c) 2023 Richard Steinmetz <richard@steinmetz.cloud>
- *
- * @author Richard Steinmetz <richard@steinmetz.cloud>
- *
- * @license AGPL-3.0-or-later
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * SPDX-FileCopyrightText: 2023 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 namespace OCA\Mail\Service;
@@ -30,7 +13,6 @@ use DateTimeImmutable;
 use Horde\ManageSieve\Exception as ManageSieveException;
 use InvalidArgumentException;
 use JsonException;
-use OCA\Mail\Db\Alias;
 use OCA\Mail\Db\MailAccount;
 use OCA\Mail\Exception\ClientException;
 use OCA\Mail\Exception\CouldNotConnectException;
@@ -42,27 +24,18 @@ use OCA\Mail\Service\OutOfOffice\OutOfOfficeState;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\IUser;
 use OCP\User\IAvailabilityCoordinator;
-use Psr\Container\ContainerExceptionInterface;
-use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 
 class OutOfOfficeService {
-	private ?IAvailabilityCoordinator $availabilityCoordinator;
 
 	public function __construct(
 		private OutOfOfficeParser $outOfOfficeParser,
 		private SieveService $sieveService,
 		private LoggerInterface $logger,
-		private AliasesService $aliasesService,
 		private ITimeFactory $timeFactory,
-		ContainerInterface $container,
+		private AllowedRecipientsService $allowedRecipientsService,
+		private IAvailabilityCoordinator $availabilityCoordinator,
 	) {
-		// TODO: inject directly if we only support Nextcloud >= 28
-		try {
-			$this->availabilityCoordinator = $container->get(IAvailabilityCoordinator::class);
-		} catch (ContainerExceptionInterface $e) {
-			$this->availabilityCoordinator = null;
-		}
 	}
 
 	/**
@@ -89,7 +62,7 @@ class OutOfOfficeService {
 		$newScript = $this->outOfOfficeParser->buildSieveScript(
 			$state,
 			$oldState->getUntouchedSieveScript(),
-			$this->buildAllowedRecipients($account),
+			$this->allowedRecipientsService->get($account),
 		);
 		try {
 			$this->sieveService->updateActiveScript($account->getUserId(), $account->getId(), $newScript);
@@ -119,10 +92,6 @@ class OutOfOfficeService {
 	 * @throws InvalidArgumentException If the given mail account doesn't follow out-of-office settings
 	 */
 	public function updateFromSystem(MailAccount $mailAccount, IUser $user): ?OutOfOfficeState {
-		if ($this->availabilityCoordinator === null) {
-			throw new ServiceException('System out-of-office data is only available in Nextcloud >= 28');
-		}
-
 		if (!$mailAccount->getOutOfOfficeFollowsSystem()) {
 			throw new InvalidArgumentException('The mail account does not follow system out-of-office settings');
 		}
@@ -142,8 +111,8 @@ class OutOfOfficeService {
 			// In the middle of a running absence => enable auto responder
 			$state = new OutOfOfficeState(
 				true,
-				new DateTimeImmutable("@" . $currentOutOfOfficeData->getStartDate()),
-				new DateTimeImmutable("@" . $currentOutOfOfficeData->getEndDate()),
+				new DateTimeImmutable('@' . $currentOutOfOfficeData->getStartDate()),
+				new DateTimeImmutable('@' . $currentOutOfOfficeData->getEndDate()),
 				'Re: ${subject}',
 				$currentOutOfOfficeData->getMessage(),
 			);
@@ -171,16 +140,5 @@ class OutOfOfficeService {
 
 		$state->setEnabled(false);
 		$this->update($account, $state);
-	}
-
-	/**
-	 * @return string[]
-	 */
-	private function buildAllowedRecipients(MailAccount $mailAccount): array {
-		$aliases = $this->aliasesService->findAll($mailAccount->getId(), $mailAccount->getUserId());
-		$formattedAliases = array_map(static function (Alias $alias) {
-			return $alias->getAlias();
-		}, $aliases);
-		return array_merge([$mailAccount->getEmail()], $formattedAliases);
 	}
 }

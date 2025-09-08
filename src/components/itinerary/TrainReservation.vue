@@ -1,3 +1,7 @@
+<!--
+  - SPDX-FileCopyrightText: 2019 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 <template>
 	<div class="reservation">
 		<div class="departure">
@@ -186,7 +190,7 @@ export default {
 }
 
 .departure {
-	text-align: right;
+	text-align: end;
 }
 
 .connection {

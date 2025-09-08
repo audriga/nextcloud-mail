@@ -1,57 +1,22 @@
-/*
- * @copyright 2022 Greta Doci <gretadoci@gmail.com>
- *
- * @author 2022 Greta Doci <gretadoci@gmail.com>
- * @author 2023 Richard Steinmetz <richard@steinmetz.cloud>
- *
- * @license AGPL-3.0-or-later
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+/**
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 import {createLocalVue, shallowMount} from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 
 import Nextcloud from '../../../mixins/Nextcloud.js'
 import ThreadEnvelope from '../../../components/ThreadEnvelope.vue'
-import Vuex from 'vuex'
 
 const localVue = createLocalVue()
 
-localVue.use(Vuex)
 localVue.mixin(Nextcloud)
 
 describe('ThreadEnvelope', () => {
-	let actions
-	let getters
-	let store
 
 	beforeEach(() => {
-		actions = {}
-		getters = {
-			accounts: () => [
-				{
-					id: 123,
-				},
-			],
-			getAccount: () => (id) => ({}),
-			getEnvelopeTags: () => (id) => ([]),
-			getMailbox: () => (id) => ({}),
-		}
-		store = new Vuex.Store({
-			actions,
-			getters,
-		})
+		setActivePinia(createPinia())
 	})
 
 	it('allows toggling seen flag without ACLs', () => {
@@ -75,7 +40,6 @@ describe('ThreadEnvelope', () => {
 					return { myAcls: undefined }
 				},
 			},
-			store,
 			localVue,
 		})
 
@@ -103,7 +67,6 @@ describe('ThreadEnvelope', () => {
 					return { myAcls: 'x' }
 				},
 			},
-			store,
 			localVue,
 		})
 
@@ -131,7 +94,6 @@ describe('ThreadEnvelope', () => {
 					return { myAcls: 's' }
 				},
 			},
-			store,
 			localVue,
 		})
 
@@ -161,7 +123,6 @@ describe('ThreadEnvelope', () => {
 					return { myAcls: undefined }
 				},
 			},
-			store,
 			localVue,
 		})
 
@@ -192,7 +153,6 @@ describe('ThreadEnvelope', () => {
 					return { myAcls: 'i' }
 				},
 			},
-			store,
 			localVue,
 		})
 
@@ -223,7 +183,6 @@ describe('ThreadEnvelope', () => {
 					return { myAcls: undefined }
 				},
 			},
-			store,
 			localVue,
 		})
 
@@ -254,7 +213,6 @@ describe('ThreadEnvelope', () => {
 					return { }
 				},
 			},
-			store,
 			localVue,
 		})
 
@@ -282,7 +240,6 @@ describe('ThreadEnvelope', () => {
 					return { myAcls: 'x' }
 				},
 			},
-			store,
 			localVue,
 		})
 
@@ -311,7 +268,6 @@ describe('ThreadEnvelope', () => {
 					return { myAcls: undefined }
 				},
 			},
-			store,
 			localVue,
 		})
 
@@ -338,7 +294,6 @@ describe('ThreadEnvelope', () => {
 					return { myAcls: 's' }
 				},
 			},
-			store,
 			localVue,
 		})
 
@@ -365,7 +320,6 @@ describe('ThreadEnvelope', () => {
 					return { myAcls: 'te' }
 				},
 			},
-			store,
 			localVue,
 		})
 
@@ -399,7 +353,6 @@ describe('ThreadEnvelope', () => {
 					return { myAcls: 'w' }
 				},
 			},
-			store,
 			localVue,
 		})
 
@@ -437,7 +390,6 @@ describe('ThreadEnvelope', () => {
 					return { }
 				},
 			},
-			store,
 			localVue,
 		})
 
@@ -474,7 +426,6 @@ describe('ThreadEnvelope', () => {
 					return { }
 				},
 			},
-			store,
 			localVue,
 		})
 

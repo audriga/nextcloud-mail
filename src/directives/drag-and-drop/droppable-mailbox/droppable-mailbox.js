@@ -1,4 +1,7 @@
-import store from '../../../store/index.js'
+/**
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 import logger from '../../../logger.js'
 import dragEventBus from '../util/dragEventBus.js'
 
@@ -7,6 +10,7 @@ export class DroppableMailbox {
 	constructor(el, componentInstance, options) {
 		this.el = el
 		this.options = options
+		this.mainStore = options.mainStore
 		this.registerListeners.bind(this)(el)
 		this.setInitialAttributes()
 	}
@@ -62,11 +66,24 @@ export class DroppableMailbox {
 		return this.draggableInfo.accountId === this.options.accountId
 	}
 
+	/**
+	 * Is the user currently dragging a valid object?
+	 *
+	 * @return {boolean}
+	 */
+	get isCurrentlyDragging() {
+		return Object.keys(this.draggableInfo).length > 0
+	}
+
 	onDragEnd() {
 		this.setInitialAttributes()
 	}
 
 	onDragOver(event) {
+		if (!this.isCurrentlyDragging) {
+			return
+		}
+
 		event.preventDefault()
 
 		// Prevent dropping into current folder
@@ -82,11 +99,19 @@ export class DroppableMailbox {
 	}
 
 	onDragLeave(event) {
+		if (!this.isCurrentlyDragging) {
+			return
+		}
+
 		event.preventDefault()
 		this.setStatus('enabled')
 	}
 
 	async onDrop(event) {
+		if (!this.isCurrentlyDragging) {
+			return
+		}
+
 		event.preventDefault()
 
 		// Prevent dropping into current folder
@@ -119,10 +144,17 @@ export class DroppableMailbox {
 		item.setAttribute('draggable-envelope', 'pending')
 
 		try {
-			await store.dispatch('moveThread', {
-				envelope,
-				destMailboxId: this.options.mailboxId,
-			})
+			if (this.mainStore.getPreference('layout-message-view') === 'threaded') {
+				await this.mainStore.moveThread({
+					envelope,
+					destMailboxId: this.options.mailboxId,
+				})
+			} else {
+				await this.mainStore.moveMessage({
+					id: envelope.databaseId,
+					destMailboxId: this.options.mailboxId,
+				})
+			}
 		} catch (error) {
 			item.removeAttribute('draggable-envelope')
 			logger.error('could not move messages', error)

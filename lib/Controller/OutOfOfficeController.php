@@ -3,25 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @copyright Copyright (c) 2023 Richard Steinmetz <richard@steinmetz.cloud>
- *
- * @author Richard Steinmetz <richard@steinmetz.cloud>
- *
- * @license AGPL-3.0-or-later
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * SPDX-FileCopyrightText: 2023 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 namespace OCA\Mail\Controller;
@@ -36,11 +19,13 @@ use OCA\Mail\Service\OutOfOffice\OutOfOfficeState;
 use OCA\Mail\Service\OutOfOfficeService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\Attribute\OpenAPI;
 use OCP\IRequest;
 use OCP\IUserSession;
 use OCP\User\IAvailabilityCoordinator;
 use Psr\Container\ContainerInterface;
 
+#[OpenAPI(scope: OpenAPI::SCOPE_IGNORE)]
 class OutOfOfficeController extends Controller {
 	public function __construct(
 		IRequest $request,
@@ -124,7 +109,7 @@ class OutOfOfficeController extends Controller {
 		}
 
 		if ($enabled && $start === null) {
-			throw new ServiceException("Missing start date");
+			throw new ServiceException('Missing start date');
 		}
 
 		$mailAccount = $account->getMailAccount();

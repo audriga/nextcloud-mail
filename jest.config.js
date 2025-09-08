@@ -1,5 +1,10 @@
+/**
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 module.exports = {
-	testEnvironment: 'jest-environment-jsdom',
+	preset: 'ts-jest',
+	testEnvironment: './src/tests/jsdom-structured-clone-env.js',
 	moduleFileExtensions: [
 		'js',
 		'jsx',

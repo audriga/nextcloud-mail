@@ -3,22 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @author Christoph Wurst <christoph@winzerhof-wurst.at>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2019 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\Service\Provisioning;
@@ -114,14 +100,20 @@ class Manager {
 	}
 
 	public function provision(): int {
-		$cnt = 0;
+		$counter = 0;
+
 		$configs = $this->getConfigs();
-		$this->userManager->callForAllUsers(function (IUser $user) use ($configs, &$cnt) {
-			if ($this->provisionSingleUser($configs, $user) === true) {
-				$cnt++;
+		if (count($configs) === 0) {
+			return $counter;
+		}
+
+		$this->userManager->callForAllUsers(function (IUser $user) use ($configs, &$counter) {
+			if ($this->provisionSingleUser($configs, $user)) {
+				$counter++;
 			}
 		});
-		return $cnt;
+
+		return $counter;
 	}
 
 	/**
@@ -204,7 +196,7 @@ class Manager {
 			$mailAccount = $this->mailAccountMapper->update(
 				$this->updateAccount($user, $mailAccount, $provisioning)
 			);
-		} catch (DoesNotExistException | MultipleObjectsReturnedException $e) {
+		} catch (DoesNotExistException|MultipleObjectsReturnedException $e) {
 			if ($e instanceof MultipleObjectsReturnedException) {
 				// This is unlikely to happen but not impossible.
 				// Let's wipe any existing accounts and start fresh
@@ -319,7 +311,7 @@ class Manager {
 	/**
 	 * @param Provisioning[] $provisionings
 	 */
-	public function updatePassword(IUser $user, string $password, array $provisionings): void {
+	public function updatePassword(IUser $user, ?string $password, array $provisionings): void {
 		try {
 			$account = $this->mailAccountMapper->findProvisionedAccount($user);
 
@@ -327,11 +319,18 @@ class Manager {
 			if ($provisioning === null) {
 				return;
 			}
-			$masterPassword = $provisioning->getMasterPassword();
-			$masterPasswordEnabled = $provisioning->getMasterPasswordEnabled();
-			if ($masterPasswordEnabled && $masterPassword !== null) {
-				$password = $masterPassword;
+
+			// FIXME: Need to check for an empty string here too?
+			// The password is empty (and not null) when using WebAuthn passwordless login.
+			// Maybe research other providers as well.
+			// Ref \OCA\Mail\Controller\PageController::index()
+			//     -> inital state for password-is-unavailable
+			if ($provisioning->getMasterPasswordEnabled() === true && $provisioning->getMasterPassword() !== null) {
+				$password = $provisioning->getMasterPassword();
 				$this->logger->debug('Password set to master password for ' . $user->getUID());
+			} elseif ($password === null) {
+				$this->logger->debug('No password set for ' . $user->getUID());
+				return;
 			}
 
 			if (!empty($account->getInboundPassword())

@@ -3,24 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @copyright 2021 Anna Larch <anna@nextcloud.com>
- *
- * @author 2021 Anna Larch <anna@nextcloud.com>
- *
- * @license GNU AGPL version 3 or any later version
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2021 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 namespace OCA\Mail\Db;
@@ -101,8 +85,8 @@ class TagMapper extends QBMapper {
 
 		$qb = $this->db->getQueryBuilder();
 		$qb->insert('mail_message_tags')
-		   ->setValue('imap_message_id', $qb->createNamedParameter($messageId))
-		   ->setValue('tag_id', $qb->createNamedParameter($tag->getId(), IQueryBuilder::PARAM_INT));
+			->setValue('imap_message_id', $qb->createNamedParameter($messageId))
+			->setValue('tag_id', $qb->createNamedParameter($tag->getId(), IQueryBuilder::PARAM_INT));
 		$qb->executeStatement();
 	}
 
@@ -255,13 +239,13 @@ class TagMapper extends QBMapper {
 	public function deleteDuplicates(): void {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('mt2.id')
-		->from('mail_message_tags', 'mt2')
-		->join('mt2', 'mail_message_tags', 'mt1', $qb->expr()->andX(
-			$qb->expr()->gt('mt1.id', 'mt2.id'),
-			$qb->expr()->eq('mt1.imap_message_id', 'mt2.imap_message_id'),
-			$qb->expr()->eq('mt1.tag_id', 'mt2.tag_id')
-		)
-		);
+			->from('mail_message_tags', 'mt2')
+			->join('mt2', 'mail_message_tags', 'mt1', $qb->expr()->andX(
+				$qb->expr()->gt('mt1.id', 'mt2.id'),
+				$qb->expr()->eq('mt1.imap_message_id', 'mt2.imap_message_id'),
+				$qb->expr()->eq('mt1.tag_id', 'mt2.tag_id')
+			)
+			);
 		$result = $qb->executeQuery();
 		$rows = $result->fetchAll();
 		$result->closeCursor();
@@ -289,9 +273,9 @@ class TagMapper extends QBMapper {
 		$qb = $this->db->getQueryBuilder();
 
 		$qb->select('mt.id')
-		->from('mail_messages', 'm')
-		->rightJoin('m', 'mail_message_tags', 'mt', $qb->expr()->eq('m.message_id', 'mt.imap_message_id'))
-		->where($qb->expr()->isNull('m.message_id'));
+			->from('mail_messages', 'm')
+			->rightJoin('m', 'mail_message_tags', 'mt', $qb->expr()->eq('m.message_id', 'mt.imap_message_id'))
+			->where($qb->expr()->isNull('m.message_id'));
 		$result = $qb->executeQuery();
 		$rows = $result->fetchAll();
 		$result->closeCursor();

@@ -1,8 +1,12 @@
+<!--
+  - SPDX-FileCopyrightText: 2020 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 <template>
 	<Modal @close="onClose">
 		<div ref="content" class="modal-content">
 			<h2 class="oc-dialog-title">
-				{{ t('mail', 'Choose target mailbox') }}
+				{{ t('mail', 'Choose target folder') }}
 			</h2>
 			<span class="crumbs">
 				<div @click.prevent="onClickHome">
@@ -59,16 +63,18 @@
 <script>
 import { NcModal as Modal, NcLoadingIcon as IconLoading, NcButton as ButtonVue } from '@nextcloud/vue'
 import IconBreadcrumb from 'vue-material-design-icons/ChevronRight.vue'
-import IconInbox from 'vue-material-design-icons/Home.vue'
-import IconDraft from 'vue-material-design-icons/Pencil.vue'
-import IconSent from 'vue-material-design-icons/Send.vue'
-import IconArchive from 'vue-material-design-icons/PackageDown.vue'
-import IconTrash from 'vue-material-design-icons/Delete.vue'
-import IconFolder from 'vue-material-design-icons/Folder.vue'
+import IconInbox from 'vue-material-design-icons/HomeOutline.vue'
+import IconDraft from 'vue-material-design-icons/PencilOutline.vue'
+import IconSent from 'vue-material-design-icons/SendOutline.vue'
+import IconArchive from 'vue-material-design-icons/ArchiveArrowDownOutline.vue'
+import IconTrash from 'vue-material-design-icons/TrashCanOutline.vue'
+import IconFolder from 'vue-material-design-icons/FolderOutline.vue'
 
 import { translate as t } from '@nextcloud/l10n'
 import { translate as translateMailboxName } from '../i18n/MailboxTranslator.js'
 import { mailboxHasRights } from '../util/acl.js'
+import { mapStores } from 'pinia'
+import useMainStore from '../store/mainStore.js'
 
 export default {
 	name: 'MailboxPicker',
@@ -124,11 +130,12 @@ export default {
 		}
 	},
 	computed: {
+		...mapStores(useMainStore),
 		mailboxes() {
 			if (!this.selectedMailboxId) {
-				return this.$store.getters.getMailboxes(this.account.accountId)
+				return this.mainStore.getMailboxes(this.account.accountId)
 			} else {
-				return this.$store.getters.getSubMailboxes(this.selectedMailboxId)
+				return this.mainStore.getSubMailboxes(this.selectedMailboxId)
 			}
 		},
 		filteredMailboxes() {
@@ -184,12 +191,12 @@ export default {
 	width: 100%;
 	height: 100%;
 	flex-direction: column;
-	padding: 15px;
+	padding: calc(var(--default-grid-baseline) * 4);
 }
 
 .crumbs {
 	display: inline-flex;
-	padding-right: 0px;
+	padding-inline-end: 0;
 	flex-wrap: wrap;
 
 	.level {
@@ -198,15 +205,15 @@ export default {
 		min-width: 0px;
 		flex: 0 0 auto;
 		order: 1;
-		padding-right: 7px;
+		padding-inline-end: calc(var(--default-grid-baseline) * 2);
 		background-position: right center;
 		background-size: auto 24px;
-		margin-top: -10px;
+		margin-top: calc(var(--default-grid-baseline) * -2.5);
 	}
 
 	a {
 		position: relative;
-		padding: 12px;
+		padding: calc(var(--default-grid-baseline) * 3);
 		opacity: 0.5;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -242,7 +249,7 @@ export default {
 		}
 
 		&:not(:last-child) {
-			border-bottom: 1px solid var(--color-border);
+			border-bottom: var(--border-width-input) solid var(--color-border);
 		}
 	}
 
@@ -259,13 +266,13 @@ export default {
 	.mailbox-icon {
 		width: 24px;
 		height: 24px;
-		padding: 14px;
+		padding: calc(var(--default-grid-baseline) * 3);
 		opacity: 0.9;
 		background-size: 24px;
 	}
 
 	.mailbox-title {
-		padding: 14px 14px 14px 0;
+		padding: calc(var(--default-grid-baseline) * 3) calc(var(--default-grid-baseline) * 3) calc(var(--default-grid-baseline) * 3) 0;
 		flex: 1;
 		overflow: hidden;
 		white-space: nowrap;
@@ -276,14 +283,15 @@ export default {
 .buttons {
 	display: flex;
 	justify-content: flex-end;
-	padding-top: 10px;
+	padding-top: calc(var(--default-grid-baseline) * 2);
 
 	.spinner {
-		margin-right: 5px;
+		margin-inline-end: var(--default-grid-baseline);
 	}
 }
+
 .material-design-icon {
 	opacity: .7;
-	margin-right: 6px;
+	margin-inline-end: calc(var(--default-grid-baseline) * 1.5);
 }
 </style>

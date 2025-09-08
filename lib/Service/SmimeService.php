@@ -3,24 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @copyright Copyright (c) 2022 Richard Steinmetz <richard@steinmetz.cloud>
- *
- * @author Richard Steinmetz <richard@steinmetz.cloud>
- *
- * @license AGPL-3.0-or-later
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 namespace OCA\Mail\Service;
@@ -47,7 +31,6 @@ use OCA\Mail\Model\SmimeCertificateInfo;
 use OCA\Mail\Model\SmimeCertificatePurposes;
 use OCA\Mail\Model\SmimeDecryptionResult;
 use OCP\AppFramework\Db\DoesNotExistException;
-use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\ICertificateManager;
 use OCP\ITempManager;
 use OCP\Security\ICrypto;
@@ -57,18 +40,16 @@ class SmimeService {
 	private ICertificateManager $certificateManager;
 	private ICrypto $crypto;
 	private SmimeCertificateMapper $certificateMapper;
-	private ITimeFactory $timeFactory;
 
-	public function __construct(ITempManager           $tempManager,
-		ICertificateManager    $certificateManager,
-		ICrypto                $crypto,
-		SmimeCertificateMapper $certificateMapper,
-		ITimeFactory           $timeFactory) {
+
+	public function __construct(ITempManager $tempManager,
+		ICertificateManager $certificateManager,
+		ICrypto $crypto,
+		SmimeCertificateMapper $certificateMapper) {
 		$this->tempManager = $tempManager;
 		$this->certificateManager = $certificateManager;
 		$this->crypto = $crypto;
 		$this->certificateMapper = $certificateMapper;
-		$this->timeFactory = $timeFactory;
 	}
 
 	/**
@@ -84,7 +65,7 @@ class SmimeService {
 		// smime/pkcs7 module. Unfortunately, it is only supported since php 8.
 		// Ref https://www.php.net/manual/en/function.openssl-cms-verify.php
 
-		$messageTemp = $this->tempManager->getTemporaryFile();
+		$messageTemp = $this->getTemporaryFileOrThrow();
 		$messageTempHandle = fopen($messageTemp, 'wb');
 		fwrite($messageTempHandle, $message);
 		fclose($messageTempHandle);
@@ -122,8 +103,8 @@ class SmimeService {
 		// smime/pkcs7 module. Unfortunately, it is only supported since php 8.
 		// Ref https://www.php.net/manual/en/function.openssl-cms-verify.php
 
-		$verifiedContentTemp = $this->tempManager->getTemporaryFile();
-		$messageTemp = $this->tempManager->getTemporaryFile();
+		$verifiedContentTemp = $this->getTemporaryFileOrThrow();
+		$messageTemp = $this->getTemporaryFileOrThrow();
 		$messageTempHandle = fopen($messageTemp, 'wb');
 		fwrite($messageTempHandle, $message);
 		fclose($messageTempHandle);
@@ -182,13 +163,16 @@ class SmimeService {
 			}
 		}
 
+		$decryptedCertificateFile = $this->getTemporaryFileOrThrow();
+		file_put_contents($decryptedCertificateFile, $certificate);
+
 		$caBundle = [$this->certificateManager->getAbsoluteBundlePath()];
 		return new SmimeCertificateInfo(
 			$certificateData['subject']['CN'] ?? null,
 			$certificateData['subject']['emailAddress'] ?? $certificateData['subject']['CN'],
 			$certificateData['validTo_time_t'],
 			$purposes,
-			openssl_x509_checkpurpose($certificate, X509_PURPOSE_ANY, $caBundle) === true,
+			openssl_x509_checkpurpose($certificate, X509_PURPOSE_ANY, $caBundle, $decryptedCertificateFile) === true,
 		);
 	}
 
@@ -359,7 +343,7 @@ class SmimeService {
 	 * @throws SmimeSignException If signing the message fails
 	 * @throws ServiceException If decrypting the certificate or private key fails or the private key is missing
 	 */
-	public function signMimePart(Horde_Mime_Part  $part,
+	public function signMimePart(Horde_Mime_Part $part,
 		SmimeCertificate $certificate): Horde_Mime_Part {
 		if ($certificate->getPrivateKey() === null) {
 			throw new ServiceException('Certificate does not have a private key');
@@ -376,20 +360,22 @@ class SmimeService {
 			);
 		}
 
-		$inPath = $this->tempManager->getTemporaryFile();
-		$outPath = $this->tempManager->getTemporaryFile();
+		$decryptedCertificateFile = $this->getTemporaryFileOrThrow();
+		file_put_contents($decryptedCertificateFile, $decryptedCertificate);
+
+		$inPath = $this->getTemporaryFileOrThrow();
+		$outPath = $this->getTemporaryFileOrThrow();
 		file_put_contents($inPath, $part->toString([
 			'canonical' => true,
 			'headers' => true,
+			'encode' => Horde_Mime_Part::ENCODE_8BIT,
 		]));
-		if (!openssl_pkcs7_sign($inPath, $outPath, $decryptedCertificate, $decryptedKey, null)) {
+		if (!openssl_pkcs7_sign($inPath, $outPath, $decryptedCertificate, $decryptedKey, null, PKCS7_DETACHED | PKCS7_BINARY, $decryptedCertificateFile)) {
 			throw new SmimeSignException('Failed to sign MIME part');
 		}
 
 		try {
-			$parsedPart = Horde_Mime_Part::parseMessage(file_get_contents($outPath), [
-				'forcemime' => true,
-			]);
+			$parsedPart = Horde_Mime_Part::parseMessage(file_get_contents($outPath));
 		} catch (Horde_Mime_Exception $e) {
 			throw new SmimeSignException(
 				'Failed to parse signed MIME part: ' . $e->getMessage(),
@@ -435,8 +421,8 @@ class SmimeService {
 			);
 		}
 
-		$inPath = $this->tempManager->getTemporaryFile();
-		$outPath = $this->tempManager->getTemporaryFile();
+		$inPath = $this->getTemporaryFileOrThrow();
+		$outPath = $this->getTemporaryFileOrThrow();
 		file_put_contents($inPath, $mimePartText);
 		if (!openssl_pkcs7_decrypt($inPath, $outPath, $decryptedCertificate, $decryptedKey)) {
 			throw new SmimeDecryptException('Failed to decrypt MIME part text');
@@ -512,7 +498,7 @@ class SmimeService {
 		$decryptionResult = null;
 		$envelope = $message->getEnvelope();
 		foreach ($envelope->to as $recipient) {
-			/** @var Horde_Mail_Rfc822_Address $recipient  */
+			/** @var Horde_Mail_Rfc822_Address $recipient */
 			$recipientAddress = $recipient->bare_address;
 			$certs = $this->findCertificatesByEmailAddress(
 				$recipientAddress,
@@ -522,7 +508,7 @@ class SmimeService {
 			foreach ($certs as $cert) {
 				try {
 					$decryptionResult = $this->decryptMimePartText($encryptedText, $cert);
-				} catch (ServiceException | SmimeDecryptException $e) {
+				} catch (ServiceException|SmimeDecryptException $e) {
 					// Certificate probably didn't match -> continue
 					// TODO: filter a real decryption error
 					// (is hard because openssl doesn't return a proper error code)
@@ -532,7 +518,7 @@ class SmimeService {
 		}
 
 		if ($decryptionResult === null) {
-			throw new ServiceException('Failed to find a suitable S/MIME certificate for decryption');
+			throw new SmimeDecryptException('Failed to find a suitable S/MIME certificate for decryption');
 		}
 
 		return $decryptionResult;
@@ -582,7 +568,7 @@ class SmimeService {
 	 * @throws ServiceException If decrypting the certificates fails
 	 * @throws SmimeEncryptException If encrypting the message fails
 	 */
-	public function encryptMimePart(Horde_Mime_Part  $part, array $certificates): Horde_Mime_Part {
+	public function encryptMimePart(Horde_Mime_Part $part, array $certificates): Horde_Mime_Part {
 		try {
 			$decryptedCertificates = array_map(function (SmimeCertificate $certificate) {
 				return $this->crypto->decrypt($certificate->getCertificate());
@@ -591,11 +577,12 @@ class SmimeService {
 			throw new ServiceException('Failed to decrypt certificate: ' . $e->getMessage(), 0, $e);
 		}
 
-		$inPath = $this->tempManager->getTemporaryFile();
-		$outPath = $this->tempManager->getTemporaryFile();
+		$inPath = $this->getTemporaryFileOrThrow();
+		$outPath = $this->getTemporaryFileOrThrow();
 		file_put_contents($inPath, $part->toString([
 			'canonical' => true,
 			'headers' => true,
+			'encode' => Horde_Mime_Part::ENCODE_8BIT,
 		]));
 
 		/**
@@ -619,5 +606,19 @@ class SmimeService {
 		}
 
 		return $parsedPart;
+	}
+
+	/**
+	 * Create a temporary file and return the path or throw if it could not be created.
+	 *
+	 * @throws ServiceException If the temporary file could not be created
+	 */
+	private function getTemporaryFileOrThrow(): string {
+		$file = $this->tempManager->getTemporaryFile();
+		if ($file === false) {
+			throw new ServiceException('Failed to create temporary file');
+		}
+
+		return $file;
 	}
 }

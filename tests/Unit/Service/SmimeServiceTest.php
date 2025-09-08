@@ -3,25 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @copyright Copyright (c) 2023 Richard Steinmetz <richard@steinmetz.cloud>
- *
- * @author Richard Steinmetz <richard@steinmetz.cloud>
- *
- * @license AGPL-3.0-or-later
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * SPDX-FileCopyrightText: 2023 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 namespace OCA\Mail\Tests\Service;
@@ -39,7 +22,6 @@ use OCA\Mail\Db\SmimeCertificateMapper;
 use OCA\Mail\Model\SmimeCertificateInfo;
 use OCA\Mail\Model\SmimeCertificatePurposes;
 use OCA\Mail\Service\SmimeService;
-use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\ICertificateManager;
 use OCP\ITempManager;
 use OCP\Security\ICrypto;
@@ -60,9 +42,6 @@ class SmimeServiceTest extends TestCase {
 	/** @var SmimeCertificateMapper|MockObject */
 	private $certificateMapper;
 
-	/** @var ITimeFactory|MockObject */
-	private $timeFactory;
-
 	/** @var SmimeService&MockObject */
 	private $smimeService;
 
@@ -73,14 +52,12 @@ class SmimeServiceTest extends TestCase {
 		$this->certificateManager = $this->createMock(ICertificateManager::class);
 		$this->crypto = $this->createMock(ICrypto::class);
 		$this->certificateMapper = $this->createMock(SmimeCertificateMapper::class);
-		$this->timeFactory = $this->createMock(ITimeFactory::class);
 
 		$this->smimeService = new SmimeService(
 			$this->tempManager,
 			$this->certificateManager,
 			$this->crypto,
 			$this->certificateMapper,
-			$this->timeFactory
 		);
 	}
 
@@ -371,6 +348,7 @@ class SmimeServiceTest extends TestCase {
 		$encryptedText = $encryptedMimePart->toString([
 			'canonical' => true,
 			'headers' => true,
+			'encode' => Horde_Mime_Part::ENCODE_8BIT,
 		]);
 
 		$decryptedTextImapLocalhost = $this->smimeService
@@ -380,15 +358,16 @@ class SmimeServiceTest extends TestCase {
 			'forcemime' => true,
 		]);
 
-		$decryptedTextDomainTld = $this->smimeService
-			->decryptMimePartText($encryptedText, $certificateDomainTld)
-			->getDecryptedMessage();
+		$decryptionResult = $this->smimeService
+			->decryptMimePartText($encryptedText, $certificateDomainTld);
+		$decryptedTextDomainTld = $decryptionResult->getDecryptedMessage();
 		$decryptedMimePartDomainTld = Horde_Mime_Part::parseMessage($decryptedTextDomainTld, [
 			'forcemime' => true,
 		]);
 
 		$this->assertEquals($mimePart->getContents(), $decryptedMimePartImapLocalhost->getContents());
 		$this->assertEquals($mimePart->getContents(), $decryptedMimePartDomainTld->getContents());
+		$this->assertFalse($decryptionResult->isSigned());
 	}
 
 	public function provideParseCertificateData(): array {
@@ -423,6 +402,36 @@ class SmimeServiceTest extends TestCase {
 					false,
 				),
 			],
+			[ // Full chain: Leaf -> Intermediate CA -> CA
+				$this->getTestCertificate('chain@imap.localhost'),
+				new SmimeCertificateInfo(
+					'chain',
+					'chain@imap.localhost',
+					4870519697,
+					new SmimeCertificatePurposes(true, true),
+					true,
+				),
+			],
+			[ // Partial chain: Leaf -> Intermediate CA
+				$this->getTestCertificate('chain-partial@imap.localhost'),
+				new SmimeCertificateInfo(
+					'chain',
+					'chain@imap.localhost',
+					4870519697,
+					new SmimeCertificatePurposes(true, true),
+					true,
+				),
+			],
+			[ // Leaf only
+				$this->getTestCertificate('chain-leaf-only@imap.localhost'),
+				new SmimeCertificateInfo(
+					'chain',
+					'chain@imap.localhost',
+					4870519697,
+					new SmimeCertificatePurposes(true, true),
+					false,
+				),
+			],
 		];
 	}
 
@@ -435,9 +444,93 @@ class SmimeServiceTest extends TestCase {
 			->method('getAbsoluteBundlePath')
 			->willReturn(__DIR__ . '/../../data/smime-certs/imap.localhost.ca.crt');
 
+		$this->tempManager->expects(self::once())
+			->method('getTemporaryFile')
+			->willReturnCallback(fn () => $this->createTempFile());
+
 		$this->assertEquals(
 			$expected,
 			$this->smimeService->parseCertificate($certificate->getCertificate()),
 		);
+	}
+
+	public function testSignMimePart(): void {
+		$plainPart = Horde_Mime_Part::parseMessage(file_get_contents(__DIR__ . '/../../data/html-with-signature.txt'));
+		$certificate = $this->getTestCertificate('debug@imap.localhost');
+
+		$this->crypto
+			->method('decrypt')
+			->will($this->returnArgument(0));
+		$this->tempManager
+			->method('getTemporaryFile')
+			->willReturnCallback(function () {
+				return $this->createTempFile();
+			});
+
+		// Can't compare to serialized part as the boundaries inside the signed MIME message are
+		// generated randomly each time. => Verify the signed part instead.
+		$actualPart = $this->smimeService->signMimePart($plainPart, $certificate);
+		$messageTemp = $this->createTempFile();
+		file_put_contents($messageTemp, $actualPart->toString([
+			'canonical' => true,
+			'headers' => true,
+			'encode' => Horde_Mime_Part::ENCODE_8BIT,
+		]));
+		$this->assertTrue(openssl_pkcs7_verify(
+			$messageTemp,
+			0,
+			null,
+			[__DIR__ . '/../../data/smime-certs/imap.localhost.ca.crt'],
+		));
+	}
+
+	public function testSignAndEncryptMimePart() {
+		$certificateDomainTld = $this->getTestCertificate('user@domain.tld');
+		$certificateImapLocalhost = $this->getTestCertificate('user@imap.localhost');
+
+		$mailBody = file_get_contents(__DIR__ . '/../../../tests/data/mime-html-unicode.txt');
+		$mimePart = Horde_Mime_Part::parseMessage($mailBody);
+
+		$this->crypto
+			->method('decrypt')
+			->will($this->returnArgument(0));
+		$this->tempManager
+			->method('getTemporaryFile')
+			->willReturnCallback(function () {
+				return $this->createTempFile();
+			});
+		$this->certificateManager->expects(self::once())
+			->method('getAbsoluteBundlePath')
+			->willReturn(__DIR__ . '/../../data/smime-certs/imap.localhost.ca.crt');
+
+		$signedMimePart = $this->smimeService->signMimePart($mimePart, $certificateImapLocalhost);
+		$encryptedMimePart = $this->smimeService->encryptMimePart(
+			$signedMimePart,
+			[$certificateDomainTld],
+		);
+		$encryptedText = $encryptedMimePart->toString([
+			'canonical' => true,
+			'headers' => true,
+			'encode' => Horde_Mime_Part::ENCODE_8BIT,
+		]);
+
+		$decryptionResult = $this->smimeService
+			->decryptMimePartText($encryptedText, $certificateDomainTld);
+		$decryptedMimePart = Horde_Mime_Part::parseMessage($decryptionResult->getDecryptedMessage());
+
+		$this->assertEquals(
+			$signedMimePart->toString([
+				'canonical' => true,
+				'headers' => false,
+				'encode' => Horde_Mime_Part::ENCODE_8BIT,
+			]),
+			$decryptedMimePart->toString([
+				'canonical' => true,
+				'headers' => false,
+				'encode' => Horde_Mime_Part::ENCODE_8BIT,
+			]),
+		);
+		$this->assertTrue($decryptionResult->isSigned());
+		$this->assertTrue($decryptionResult->isSignatureValid());
 	}
 }

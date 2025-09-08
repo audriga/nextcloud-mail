@@ -1,25 +1,7 @@
 <!--
-  - @copyright 2018 Christoph Wurst <christoph@winzerhof-wurst.at>
-  - @copyright 2020 Gary Kim <gary@garykim.dev>
-  -
-  - @author 2018 Christoph Wurst <christoph@winzerhof-wurst.at>
-  - @author Richard Steinmetz <richard@steinmetz.cloud>
-  -
-  - @license AGPL-3.0-or-later
-  -
-  - This program is free software: you can redistribute it and/or modify
-  - it under the terms of the GNU Affero General Public License as
-  - published by the Free Software Foundation, either version 3 of the
-  - License, or (at your option) any later version.
-  -
-  - This program is distributed in the hope that it will be useful,
-  - but WITHOUT ANY WARRANTY; without even the implied warranty of
-  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  - GNU Affero General Public License for more details.
-  -
-  - You should have received a copy of the GNU Affero General Public License
-  - along with this program.  If not, see <http://www.gnu.org/licenses/>.
-  -->
+  - SPDX-FileCopyrightText: 2018 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 
 <template>
 	<div class="new-message-attachments">
@@ -30,8 +12,8 @@
 			<span>
 				{{ n('mail', '{count} attachment', '{count} attachments', attachments.length, { count: attachments.length }) }} ({{ formatBytes(totalSizeOfUpload()) }})
 			</span>
-			<ChevronUp v-if="isToggle" :size="24" />
-			<ChevronDown v-if="!isToggle" :size="24" />
+			<ChevronUp v-if="isToggle" :size="20" />
+			<ChevronDown v-if="!isToggle" :size="20" />
 		</div>
 		<ul class="new-message-attachments--list"
 			:class="{
@@ -52,12 +34,12 @@
 			style="display: none;"
 			@change="onLocalAttachmentSelected">
 		<FilePicker v-if="isAttachementPickerOpen"
-			:title="t('mail','Choose a file to add as attachment')"
+			:name="t('mail','Choose a file to add as attachment')"
 			:buttons="attachementPickerButtons"
 			:filter-fn="filterAttachements"
 			@close="()=>isAttachementPickerOpen = false" />
 		<FilePicker v-if="isLinkPickerOpen"
-			:title="t('mail','Choose a file to share as a link')"
+			:name="t('mail','Choose a file to share as a link')"
 			:multiselect="false"
 			:buttons="linkPickerButtons"
 			:filter-fn="filterAttachements"
@@ -194,7 +176,7 @@ export default {
 	created() {
 		this.bus.on('on-add-local-attachment', this.onAddLocalAttachment)
 		this.bus.on('on-add-cloud-attachment', this.openAttachementPicker)
-		this.bus.on('on-add-cloud-attachment-link', this.OpenctLinkPicker)
+		this.bus.on('on-add-cloud-attachment-link', this.OpenLinkPicker)
 		this.bus.on('on-add-message-as-attachment', this.onAddMessageAsAttachment)
 		this.value.map(attachment => {
 			this.attachments.push({
@@ -211,14 +193,14 @@ export default {
 	},
 	methods: {
 		filterAttachements(node) {
-			const downloadShareAttribute = JSON.parse(node.attributes['share-attributes']).find((shareAttribute) => shareAttribute.key === 'download')
-			const downloadPermissions = downloadShareAttribute !== undefined ? downloadShareAttribute.enabled : true
+			const downloadShareAttribute = node.attributes['share-attributes'] ? JSON.parse(node.attributes['share-attributes'])?.find((shareAttribute) => shareAttribute.key === 'download') : undefined
+			const downloadPermissions = downloadShareAttribute !== undefined ? downloadShareAttribute.value : true
 			return (node.permissions & OC.PERMISSION_READ) && downloadPermissions
 		},
 		openAttachementPicker() {
 			this.isAttachementPickerOpen = true
 		},
-		OpenctLinkPicker() {
+		OpenLinkPicker() {
 			this.isLinkPickerOpen = true
 		},
 		onAddLocalAttachment() {

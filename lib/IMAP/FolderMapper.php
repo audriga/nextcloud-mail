@@ -3,22 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @author Christoph Wurst <christoph@winzerhof-wurst.at>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2017 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\IMAP;
@@ -79,7 +65,6 @@ class FolderMapper {
 		});
 		return array_map(static function (array $mailbox) use ($account) {
 			return new Folder(
-				$account->getId(),
 				$mailbox['mailbox'],
 				$mailbox['attributes'],
 				$mailbox['delimiter'],
@@ -89,7 +74,6 @@ class FolderMapper {
 	}
 
 	public function createFolder(Horde_Imap_Client_Socket $client,
-		Account $account,
 		string $name): Folder {
 		$client->createMailbox($name);
 
@@ -102,11 +86,10 @@ class FolderMapper {
 		$mb = reset($list);
 
 		if ($mb === null) {
-			throw new ServiceException("Created mailbox does not exist");
+			throw new ServiceException('Created mailbox does not exist');
 		}
 
 		return new Folder(
-			$account->getId(),
 			$mb['mailbox'],
 			$mb['attributes'],
 			$mb['delimiter'],
@@ -152,7 +135,7 @@ class FolderMapper {
 		foreach ($multiStatus as $mailbox => $status) {
 			try {
 				if (!isset($status['messages'], $status['unseen'])) {
-					throw new ServiceException('Could not fetch stats of mailbox: '.$mailbox);
+					throw new ServiceException('Could not fetch stats of mailbox: ' . $mailbox);
 				}
 				$statuses[$mailbox] = new MailboxStats(
 					$status['messages'],
@@ -273,7 +256,7 @@ class FolderMapper {
 		try {
 			$client->deleteMailbox($folderId);
 		} catch (Horde_Imap_Client_Exception $e) {
-			throw new ServiceException('Could not delete mailbox: '.$e->getMessage(), 0, $e);
+			throw new ServiceException('Could not delete mailbox: ' . $e->getMessage(), 0, $e);
 		}
 	}
 }

@@ -3,24 +3,9 @@
 declare(strict_types=1);
 
 /**
- * @author Christoph Wurst <christoph@winzerhof-wurst.at>
- * @author Lukas Reschke <lukas@statuscode.ch>
- * @author Thomas Müller <thomas.mueller@tmit.eu>
- * @author Richard Steinmetz <richard@steinmetz.cloud>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ * SPDX-FileCopyrightText: 2016-2024 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-FileCopyrightText: 2013-2016 ownCloud Inc.
+ * SPDX-License-Identifier: AGPL-3.0-only
  *
  */
 return [
@@ -196,6 +181,11 @@ return [
 			'verb' => 'GET'
 		],
 		[
+			'name' => 'mailboxes#repair',
+			'url' => '/api/mailboxes/{id}/repair',
+			'verb' => 'POST'
+		],
+		[
 			'name' => 'messages#downloadAttachment',
 			'url' => '/api/messages/{id}/attachment/{attachmentId}',
 			'verb' => 'GET'
@@ -287,6 +277,11 @@ return [
 			'verb' => 'GET'
 		],
 		[
+			'name' => 'messages#needsTranslation',
+			'url' => '/api/messages/{messageId}/needsTranslation',
+			'verb' => 'GET'
+		],
+		[
 			'name' => 'avatars#url',
 			'url' => '/api/avatars/url/{email}',
 			'verb' => 'GET'
@@ -357,6 +352,16 @@ return [
 			'verb' => 'PUT'
 		],
 		[
+			'name' => 'settings#setImportanceClassificationEnabledByDefault',
+			'url' => '/api/settings/importance-classification-default',
+			'verb' => 'PUT'
+		],
+		[
+			'name' => 'settings#setLayoutMessageView',
+			'url' => '/api/settings/layout-message-view',
+			'verb' => 'PUT'
+		],
+		[
 			'name' => 'trusted_senders#setTrusted',
 			'url' => '/api/trustedsenders/{email}',
 			'verb' => 'PUT'
@@ -369,6 +374,21 @@ return [
 		[
 			'name' => 'trusted_senders#list',
 			'url' => '/api/trustedsenders',
+			'verb' => 'GET'
+		],
+		[
+			'name' => 'internal_address#setAddress',
+			'url' => '/api/internalAddress/{address}',
+			'verb' => 'PUT'
+		],
+		[
+			'name' => 'internal_address#removeAddress',
+			'url' => '/api/internalAddress/{address}',
+			'verb' => 'DELETE'
+		],
+		[
+			'name' => 'internal_address#list',
+			'url' => '/api/internalAddress',
 			'verb' => 'GET'
 		],
 		[
@@ -486,6 +506,16 @@ return [
 			'url' => '/api/messages/updateSchema/{url}',
 			'verb' => 'GET'
 		],
+		[
+			'name' => 'followUp#checkMessageIds',
+			'url' => '/api/follow-up/check-message-ids',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'textBlockShares#getTextBlockShares',
+			'url' => '/api/textBlocks/{id}/shares',
+			'verb' => 'GET',
+		],
 	],
 	'resources' => [
 		'accounts' => ['url' => '/api/accounts'],
@@ -498,5 +528,24 @@ return [
 		'outbox' => ['url' => '/api/outbox'],
 		'preferences' => ['url' => '/api/preferences'],
 		'smimeCertificates' => ['url' => '/api/smime/certificates'],
-	]
+		'textBlock' => ['url' => '/api/textBlocks'],
+		'textBlockShares' => ['url' => '/api/textBlockshares'],
+	],
+	'ocs' => [
+		[
+			'name' => 'messageApi#get',
+			'url' => '/message/{id}',
+			'verb' => 'GET',
+		],
+		[
+			'name' => 'messageApi#getRaw',
+			'url' => '/message/{id}/raw',
+			'verb' => 'GET',
+		],
+		[
+			'name' => 'messageApi#getAttachment',
+			'url' => '/message/{id}/attachment/{attachmentId}',
+			'verb' => 'GET',
+		],
+	],
 ];

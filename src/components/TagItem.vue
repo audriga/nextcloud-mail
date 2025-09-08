@@ -1,3 +1,7 @@
+<!--
+  - SPDX-FileCopyrightText: 2023 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 <template>
 	<div class="tag-group">
 		<button class="tag-group__label"
@@ -5,7 +9,7 @@
 				color: convertHex(tag.color, 1),
 				'background-color': convertHex(tag.color, 0.15)
 			}">
-			{{ tag.displayName }}
+			{{ translateTagDisplayName(tag) }}
 		</button>
 		<Actions :force-menu="true">
 			<NcActionButton v-if="renameTagLabel"
@@ -54,8 +58,11 @@
 <script>
 import { NcColorPicker, NcActions as Actions, NcActionButton, NcActionText as ActionText, NcActionInput as ActionInput, NcLoadingIcon as IconLoading } from '@nextcloud/vue'
 import { showInfo } from '@nextcloud/dialogs'
-import DeleteIcon from 'vue-material-design-icons/Delete.vue'
-import IconEdit from 'vue-material-design-icons/Pencil.vue'
+import DeleteIcon from 'vue-material-design-icons/TrashCanOutline.vue'
+import IconEdit from 'vue-material-design-icons/PencilOutline.vue'
+import { translateTagDisplayName } from '../util/tag.js'
+import { mapStores } from 'pinia'
+import useMainStore from '../store/mainStore.js'
 
 export default {
 	name: 'TagItem',
@@ -91,7 +98,11 @@ export default {
 			renameTagInput: false,
 		}
 	},
+	computed: {
+		...mapStores(useMainStore),
+	},
 	methods: {
+		translateTagDisplayName,
 		deleteTag() {
 			this.$emit('delete-tag', this.tag)
 		},
@@ -99,7 +110,7 @@ export default {
 			this.editColor = newColor
 			this.showSaving = false
 			try {
-				await this.$store.dispatch('updateTag', {
+				await this.mainStore.updateTag({
 					tag: this.tag,
 					displayName: this.tag.displayName,
 					color: newColor,
@@ -123,7 +134,7 @@ export default {
 			const displayName = event.target.querySelector('input[type=text]').value
 
 			try {
-				await this.$store.dispatch('updateTag', {
+				await this.mainStore.updateTag({
 					tag,
 					displayName,
 					color: tag.color,
@@ -155,7 +166,7 @@ export default {
 		isSet(imapLabel) {
 			return this.envelopes.some(
 				(envelope) => (
-					this.$store.getters.getEnvelopeTags(envelope.databaseId).some(
+					this.mainStore.getEnvelopeTags(envelope.databaseId).some(
 						tag => tag.imapLabel === imapLabel,
 					)
 				),
@@ -164,13 +175,13 @@ export default {
 		addTag(imapLabel) {
 			this.isAdded = true
 			this.envelopes.forEach((envelope) => {
-				this.$store.dispatch('addEnvelopeTag', { envelope, imapLabel })
+				this.mainStore.addEnvelopeTag({ envelope, imapLabel })
 			})
 		},
 		removeTag(imapLabel) {
 			this.isAdded = false
 			this.envelopes.forEach((envelope) => {
-				this.$store.dispatch('removeEnvelopeTag', { envelope, imapLabel })
+				this.mainStore.removeEnvelopeTag({ envelope, imapLabel })
 			})
 		},
 	},
@@ -184,7 +195,7 @@ export default {
 	position: fixed;
 	list-style: none;
 	top: 18px;
-	left: 15px;
+	inset-inline-start: 15px;
 
 	.color0 {
 		width: 22px !important;
@@ -196,36 +207,40 @@ export default {
 		position: relative;
 	}
 }
+
 .tag-group {
 	display: block;
 	position: relative;
 	margin: 0 1px;
 	overflow: hidden;
 }
+
 .tag-actions {
 	background-color: transparent;
 	border: none;
-	float: right;
+	float: inline-end;
 	&:hover,
 	&:focus {
 		background-color: var(--color-border-dark);
 	}
 }
+
 .tag-group__label {
 	z-index: 2;
 	font-weight: bold;
 	border: none;
 	background-color: transparent;
-	padding-left: 10px;
-	padding-right: 10px;
+	padding-inline: 10px;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	max-width: 94px;
 }
+
 .action-item {
-	right: 8px;
-	float: right;
+	inset-inline-end: 8px;
+	float: inline-end;
 }
+
 :deep(.input-field) {
 	margin-top: 3px;
 }

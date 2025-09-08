@@ -3,22 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @author Kristian Lebold <kristian@lebold.info>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2021 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\Controller;
@@ -27,18 +13,29 @@ use OCA\Mail\Http\TrapError;
 use OCA\Mail\Service\ContactIntegration\ContactIntegrationService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\Attribute\OpenAPI;
 use OCP\AppFramework\Http\JSONResponse;
+use OCP\ICache;
+use OCP\ICacheFactory;
 use OCP\IRequest;
 
+#[OpenAPI(scope: OpenAPI::SCOPE_IGNORE)]
 class ContactIntegrationController extends Controller {
 	private ContactIntegrationService $service;
+	private ICache $cache;
+	private string $uid;
+
 
 	public function __construct(string $appName,
 		IRequest $request,
-		ContactIntegrationService $service) {
+		ContactIntegrationService $service,
+		ICacheFactory $cacheFactory,
+		string $UserId) {
 		parent::__construct($appName, $request);
 
 		$this->service = $service;
+		$this->cache = $cacheFactory->createLocal('mail.contacts');
+		$this->uid = $UserId;
 	}
 
 	/**
@@ -88,7 +85,15 @@ class ContactIntegrationController extends Controller {
 	 */
 	#[TrapError]
 	public function autoComplete(string $term): JSONResponse {
+		$cached = $this->cache->get($this->uid . $term);
+		if ($cached !== null) {
+			$decoded = json_decode($cached, true);
+			if ($decoded !== null) {
+				return new JSONResponse($decoded);
+			}
+		}
 		$res = $this->service->autoComplete($term);
-		return (new JSONResponse($res))->cacheFor(60 * 60, false, true);
+		$this->cache->set($this->uid . $term, json_encode($res), 24 * 3600);
+		return new JSONResponse($res);
 	}
 }

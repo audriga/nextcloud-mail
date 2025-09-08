@@ -1,22 +1,6 @@
-/*
- * @copyright 2022 Daniel Kesselberg <mail@danielkesselberg.de>
- *
- * @author 2022 Daniel Kesselberg <mail@danielkesselberg.de>
- *
- * @license AGPL-3.0-or-later
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+/**
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 import VirtualTestEditor from '../../virtualtesteditor.js'
@@ -25,11 +9,12 @@ import QuotePlugin from '../../../ckeditor/quote/QuotePlugin.js'
 
 describe('QuotePlugin', () => {
 
-	it('Keep quote wrapper with QuotePlugin', async() => {
+	it('Keep quote wrapper with QuotePlugin', async () => {
 		const text = '<div class="quote"><p>bonjour bonjour</p></div>'
-		const expected = '<div class=\"quote\"><p>bonjour bonjour</p></div>'
+		const expected = '<div class="quote"><p>bonjour bonjour</p></div>'
 
 		const editor = await VirtualTestEditor.create({
+			licenseKey: 'GPL',
 			initialData: text,
 			plugins: [ParagraphPlugin, QuotePlugin],
 		})
@@ -37,11 +22,12 @@ describe('QuotePlugin', () => {
 		expect(editor.getData()).toEqual(expected)
 	})
 
-	it('Remove quote wrapper without QuotePlugin', async() => {
+	it('Remove quote wrapper without QuotePlugin', async () => {
 		const text = '<div class="quote"><p>bonjour bonjour</p></div>'
 		const expected = '<p>bonjour bonjour</p>'
 
 		const editor = await VirtualTestEditor.create({
+			licenseKey: 'GPL',
 			initialData: text,
 			plugins: [ParagraphPlugin],
 		})
@@ -49,11 +35,11 @@ describe('QuotePlugin', () => {
 		expect(editor.getData()).toEqual(expected)
 	})
 
-
-	it('Editor contains a <quote> element', async() => {
+	it('Editor contains a <quote> element', async () => {
 		const text = '<div class="quote"><p>bonjour bonjour</p></div>'
 
 		const editor = await VirtualTestEditor.create({
+			licenseKey: 'GPL',
 			initialData: text,
 			plugins: [ParagraphPlugin, QuotePlugin],
 		})

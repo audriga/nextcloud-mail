@@ -1,23 +1,7 @@
 <!--
-  - @copyright 2023 Hamza Mahjoubi <hamzamahjoubi221@proton.me>
-  -
-  - @author 2023 Hamza Mahjoubi <hamzamahjoubi221@proton.me>
-  -
-  - @license AGPL-3.0-or-later
-  -
-  - This program is free software: you can redistribute it and/or modify
-  - it under the terms of the GNU Affero General Public License as
-  - published by the Free Software Foundation, either version 3 of the
-  - License, or (at your option) any later version.
-  -
-  - This program is distributed in the hope that it will be useful,
-  - but WITHOUT ANY WARRANTY; without even the implied warranty of
-  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  - GNU Affero General Public License for more details.
-  -
-  - You should have received a copy of the GNU Affero General Public License
-  - along with this program.  If not, see <http://www.gnu.org/licenses/>.
-  -->
+  - SPDX-FileCopyrightText: 2023 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 <template>
 	<ConfirmationModal title="Delete tag"
 		:disabled="deleting"
@@ -29,6 +13,9 @@
 <script>
 import { showSuccess, showInfo } from '@nextcloud/dialogs'
 import ConfirmationModal from './ConfirmationModal.vue'
+import useMainStore from '../store/mainStore.js'
+import { mapStores } from 'pinia'
+
 export default {
 	name: 'DeleteTagModal',
 	components: {
@@ -54,20 +41,23 @@ export default {
 			deleting: false,
 		}
 	},
+	computed: {
+		...mapStores(useMainStore),
+	},
 	methods: {
 		onClose() {
 			this.$emit('close')
 		},
 		removeTag(imapLabel) {
 			this.envelopes.forEach((envelope) => {
-				this.$store.dispatch('removeEnvelopeTag', { envelope, imapLabel })
+				this.mainStore.removeEnvelopeTag({ envelope, imapLabel })
 			})
 		},
 		async deleteTag() {
 			this.deleting = true
 			try {
 				this.removeTag(this.tag.imapLabel)
-				await this.$store.dispatch('deleteTag', {
+				await this.mainStore.deleteTag({
 					tag: this.tag,
 					accountId: this.accountId,
 				})

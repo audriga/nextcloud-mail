@@ -1,24 +1,7 @@
 <!--
-  - @copyright Copyright (c) 2022 Richard Steinmetz <richard@steinmetz.cloud>
-  -
-  - @author Richard Steinmetz <richard@steinmetz.cloud>
-  -
-  - @license AGPL-3.0-or-later
-  -
-  - This program is free software: you can redistribute it and/or modify
-  - it under the terms of the GNU Affero General Public License as
-  - published by the Free Software Foundation, either version 3 of the
-  - License, or (at your option) any later version.
-  -
-  - This program is distributed in the hope that it will be useful,
-  - but WITHOUT ANY WARRANTY; without even the implied warranty of
-  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  - GNU Affero General Public License for more details.
-  -
-  - You should have received a copy of the GNU Affero General Public License
-  - along with this program. If not, see <http://www.gnu.org/licenses/>.
-  -
-  -->
+  - SPDX-FileCopyrightText: 2022 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 
 <template>
 	<ListItem class="outbox-message"
@@ -27,13 +10,26 @@
 		:details="details"
 		@click="openModal">
 		<template #icon>
-			<Avatar :display-name="avatarDisplayName" :email="avatarEmail" />
+			<Avatar :display-name="avatarDisplayName"
+				:email="avatarEmail"
+				:fetch-avatar="false"
+				:avatar="message.avatar" />
 		</template>
-		<template #subtitle>
+		<template #subname>
 			{{ subjectForSubtitle }}
 		</template>
 		<template #actions>
-			<ActionButton :close-after-click="true"
+			<ActionButton v-if="message.status === statusImapSentMailboxFail()"
+				:close-after-click="true"
+				@click="sendMessageNow">
+				{{ t('mail', 'Copy to "Sent" Folder') }}
+				<template #icon>
+					<Copy :title="t('mail', 'Copy to Sent Folder')"
+						:size="20" />
+				</template>
+			</ActionButton>
+			<ActionButton v-if="message.status !== statusImapSentMailboxFail() && message.status !== statusSmtpError()"
+				:close-after-click="true"
 				@click="sendMessageNow">
 				{{ t('mail', 'Send now') }}
 				<template #icon>
@@ -44,7 +40,7 @@
 			<ActionButton :close-after-click="true"
 				@click="deleteMessage">
 				<template #icon>
-					<IconDelete :size="20" />
+					<IconDelete :size="24" />
 				</template>
 				{{ t('mail', 'Delete') }}
 			</ActionButton>
@@ -55,16 +51,24 @@
 <script>
 import { NcListItem as ListItem, NcActionButton as ActionButton } from '@nextcloud/vue'
 import Avatar from './Avatar.vue'
-import IconDelete from 'vue-material-design-icons/Delete.vue'
+import IconDelete from 'vue-material-design-icons/TrashCanOutline.vue'
 import { getLanguage, translate as t } from '@nextcloud/l10n'
 import OutboxAvatarMixin from '../mixins/OutboxAvatarMixin.js'
 import moment from '@nextcloud/moment'
 import logger from '../logger.js'
 import { showError, showSuccess } from '@nextcloud/dialogs'
 import { matchError } from '../errors/match.js'
-import { html, plain } from '../util/text.js'
-import Send from 'vue-material-design-icons/Send.vue'
-import { UNDO_DELAY } from '../store/constants.js'
+import Send from 'vue-material-design-icons/SendOutline.vue'
+import Copy from 'vue-material-design-icons/ContentCopy.vue'
+import {
+	STATUS_RAW,
+	STATUS_IMAP_SENT_MAILBOX_FAIL,
+	STATUS_SMTP_ERROR,
+	UNDO_DELAY,
+} from '../store/constants.js'
+import useOutboxStore from '../store/outboxStore.js'
+import useMainStore from '../store/mainStore.js'
+import { mapStores } from 'pinia'
 
 export default {
 	name: 'OutboxMessageListItem',
@@ -74,6 +78,7 @@ export default {
 		ActionButton,
 		IconDelete,
 		Send,
+		Copy,
 	},
 	mixins: [
 		OutboxAvatarMixin,
@@ -85,6 +90,7 @@ export default {
 		},
 	},
 	computed: {
+		...mapStores(useOutboxStore, useMainStore),
 		selected() {
 			return this.$route.params.messageId === this.message.id
 		},
@@ -97,7 +103,11 @@ export default {
 			return formatter.format(recipients)
 		},
 		details() {
-			if (this.message.failed) {
+			if (this.message.status === STATUS_IMAP_SENT_MAILBOX_FAIL) {
+				return this.t('mail', 'Could not copy to "Sent" folder')
+			} else if (this.message.status === STATUS_SMTP_ERROR) {
+				return this.t('mail', 'Mail server error')
+			} else if (this.message.status !== STATUS_RAW) {
 				return this.t('mail', 'Message could not be sent')
 			}
 			if (!this.message.sendAt) {
@@ -117,9 +127,15 @@ export default {
 		},
 	},
 	methods: {
+		statusImapSentMailboxFail() {
+			return STATUS_IMAP_SENT_MAILBOX_FAIL
+		},
+		statusSmtpError() {
+			return STATUS_SMTP_ERROR
+		},
 		async deleteMessage() {
 			try {
-				await this.$store.dispatch('outbox/deleteMessage', {
+				await this.outboxStore.deleteMessage({
 					id: this.message.id,
 				})
 				showSuccess(t('mail', 'Message deleted'))
@@ -138,16 +154,28 @@ export default {
 				failed: false,
 				sendAt: (new Date().getTime() + UNDO_DELAY) / 1000,
 			}
-			await this.$store.dispatch('outbox/updateMessage', { message, id: message.id })
-			await this.$store.dispatch('outbox/sendMessageWithUndo', { id: message.id })
+			await this.outboxStore.updateMessage({ message, id: message.id })
+			try {
+				if (this.message.status !== STATUS_IMAP_SENT_MAILBOX_FAIL) {
+					await this.outboxStore.sendMessageWithUndo({ id: message.id })
+				} else {
+					await this.outboxStore.copyMessageToSentMailbox({ id: message.id })
+				}
+			} catch (error) {
+				logger.error('Could not send or copy message', { error })
+				if (error.data !== undefined) {
+					await this.outboxStore.updateMessage({ message: error.data[0], id: message.id })
+				}
+
+			}
 		},
 		async openModal() {
-			await this.$store.dispatch('startComposerSession', {
+			if (this.message.status === STATUS_IMAP_SENT_MAILBOX_FAIL) {
+				return
+			}
+			await this.mainStore.startComposerSession({
 				type: 'outbox',
-				data: {
-					...this.message,
-					body: this.message.isHtml ? html(this.message.body) : plain(this.message.body),
-				},
+				data: { ...this.message },
 			})
 		},
 	},
@@ -164,7 +192,7 @@ export default {
 
 	.account-color {
 		position: absolute;
-		left: 0;
+		inset-inline-start: 0;
 		width: 2px;
 		height: 69px;
 		z-index: 1;

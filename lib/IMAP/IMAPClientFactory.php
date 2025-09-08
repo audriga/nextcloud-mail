@@ -3,32 +3,19 @@
 declare(strict_types=1);
 
 /**
- * @author Christoph Wurst <christoph@winzerhof-wurst.at>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2017 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\IMAP;
 
-use Horde_Imap_Client_Cache_Backend_Null;
+use Exception;
 use Horde_Imap_Client_Password_Xoauth2;
 use Horde_Imap_Client_Socket;
 use OCA\Mail\Account;
-use OCA\Mail\Cache\Cache;
+use OCA\Mail\Cache\HordeCacheFactory;
 use OCA\Mail\Events\BeforeImapClientCreated;
+use OCA\Mail\Exception\ServiceException;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\EventDispatcher\IEventDispatcher;
 use OCP\ICacheFactory;
@@ -38,7 +25,6 @@ use OCP\Security\ICrypto;
 use function hash;
 use function implode;
 use function json_encode;
-use function md5;
 
 class IMAPClientFactory {
 	/** @var ICrypto */
@@ -54,17 +40,20 @@ class IMAPClientFactory {
 	private $eventDispatcher;
 
 	private ITimeFactory $timeFactory;
+	private HordeCacheFactory $hordeCacheFactory;
 
 	public function __construct(ICrypto $crypto,
 		IConfig $config,
 		ICacheFactory $cacheFactory,
 		IEventDispatcher $eventDispatcher,
-		ITimeFactory $timeFactory) {
+		ITimeFactory $timeFactory,
+		HordeCacheFactory $hordeCacheFactory) {
 		$this->crypto = $crypto;
 		$this->config = $config;
 		$this->cacheFactory = $cacheFactory;
 		$this->eventDispatcher = $eventDispatcher;
 		$this->timeFactory = $timeFactory;
+		$this->hordeCacheFactory = $hordeCacheFactory;
 	}
 
 	/**
@@ -76,7 +65,9 @@ class IMAPClientFactory {
 	 *
 	 * @param Account $account
 	 * @param bool $useCache
+	 *
 	 * @return Horde_Imap_Client_Socket
+	 * @throws ServiceException
 	 */
 	public function getClient(Account $account, bool $useCache = true): Horde_Imap_Client_Socket {
 		$this->eventDispatcher->dispatchTyped(
@@ -109,7 +100,11 @@ class IMAPClientFactory {
 			],
 		];
 		if ($account->getMailAccount()->getAuthMethod() === 'xoauth2') {
-			$decryptedAccessToken = $this->crypto->decrypt($account->getMailAccount()->getOauthAccessToken());
+			try {
+				$decryptedAccessToken = $this->crypto->decrypt($account->getMailAccount()->getOauthAccessToken());
+			} catch (Exception $e) {
+				throw new ServiceException('Could not decrypt account password: ' . $e->getMessage(), 0, $e);
+			}
 
 			$params['password'] = $decryptedAccessToken; // Not used, but Horde wants this
 			$params['xoauth2_token'] = new Horde_Imap_Client_Password_Xoauth2(
@@ -125,28 +120,23 @@ class IMAPClientFactory {
 				json_encode($params)
 			]),
 		);
-		if ($useCache && $this->cacheFactory->isAvailable()) {
+		if ($useCache) {
 			$params['cache'] = [
-				'backend' => new Cache([
-					'cacheob' => $this->cacheFactory->createDistributed(md5((string)$account->getId())),
-				])];
-		} else {
-			/**
-			 * If we don't use a cache we use a null cache to trick Horde into
-			 * using QRESYNC/CONDSTORE if they are available
-			 * @see \Horde_Imap_Client_Socket::_loginTasks
-			 */
-			$params['cache'] = [
-				'backend' => new Horde_Imap_Client_Cache_Backend_Null(),
+				'backend' => $this->hordeCacheFactory->newCache($account),
 			];
 		}
-		if ($this->config->getSystemValue('debug', false)) {
-			$params['debug'] = $this->config->getSystemValue('datadirectory') . '/horde_imap.log';
+		if ($account->getDebug() || $this->config->getSystemValueBool('app.mail.debug')) {
+			$fn = 'mail-' . $account->getUserId() . '-' . $account->getId() . '-imap.log';
+			$params['debug'] = $this->config->getSystemValue('datadirectory') . '/' . $fn;
 		}
+
+		$client = new HordeImapClient($params);
+
 		$rateLimitingCache = $this->cacheFactory->createDistributed('mail_imap_ratelimit');
 		if ($rateLimitingCache instanceof IMemcache) {
-			return new ImapClientRateLimitingDecorator($params, $paramHash, $rateLimitingCache, $this->timeFactory);
+			$client->enableRateLimiter($rateLimitingCache, $paramHash, $this->timeFactory);
 		}
-		return new Horde_Imap_Client_Socket($params);
+
+		return $client;
 	}
 }

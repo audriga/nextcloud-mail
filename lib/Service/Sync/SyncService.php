@@ -3,24 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @copyright 2020 Christoph Wurst <christoph@winzerhof-wurst.at>
- *
- * @author 2020 Christoph Wurst <christoph@winzerhof-wurst.at>
- *
- * @license GNU AGPL version 3 or any later version
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 namespace OCA\Mail\Service\Sync;
@@ -28,13 +12,13 @@ namespace OCA\Mail\Service\Sync;
 use OCA\Mail\Account;
 use OCA\Mail\Contracts\IMailSearch;
 use OCA\Mail\Db\Mailbox;
-use OCA\Mail\Db\MailboxMapper;
 use OCA\Mail\Db\Message;
 use OCA\Mail\Db\MessageMapper;
 use OCA\Mail\Exception\ClientException;
 use OCA\Mail\Exception\MailboxLockedException;
 use OCA\Mail\Exception\MailboxNotCachedException;
 use OCA\Mail\Exception\ServiceException;
+use OCA\Mail\IMAP\IMAPClientFactory;
 use OCA\Mail\IMAP\MailboxSync;
 use OCA\Mail\IMAP\PreviewEnhancer;
 use OCA\Mail\IMAP\Sync\Response;
@@ -45,14 +29,14 @@ use function array_diff;
 use function array_map;
 
 class SyncService {
+
+	private IMAPClientFactory $clientFactory;
+
 	/** @var ImapToDbSynchronizer */
 	private $synchronizer;
 
 	/** @var FilterStringParser */
 	private $filterStringParser;
-
-	/** @var MailboxMapper */
-	private $mailboxMapper;
 
 	/** @var MessageMapper */
 	private $messageMapper;
@@ -66,16 +50,17 @@ class SyncService {
 	/** @var MailboxSync */
 	private $mailboxSync;
 
-	public function __construct(ImapToDbSynchronizer $synchronizer,
+	public function __construct(
+		IMAPClientFactory $clientFactory,
+		ImapToDbSynchronizer $synchronizer,
 		FilterStringParser $filterStringParser,
-		MailboxMapper $mailboxMapper,
 		MessageMapper $messageMapper,
 		PreviewEnhancer $previewEnhancer,
 		LoggerInterface $logger,
 		MailboxSync $mailboxSync) {
+		$this->clientFactory = $clientFactory;
 		$this->synchronizer = $synchronizer;
 		$this->filterStringParser = $filterStringParser;
-		$this->mailboxMapper = $mailboxMapper;
 		$this->messageMapper = $messageMapper;
 		$this->previewEnhancer = $previewEnhancer;
 		$this->logger = $logger;
@@ -95,13 +80,23 @@ class SyncService {
 	}
 
 	/**
+	 * Run a (rather costly) sync to delete cached messages which are not present on IMAP anymore.
+	 *
+	 * @throws MailboxLockedException
+	 * @throws ServiceException
+	 */
+	public function repairSync(Account $account, Mailbox $mailbox): void {
+		$this->synchronizer->repairSync($account, $mailbox, $this->logger);
+	}
+
+	/**
 	 * @param Account $account
 	 * @param Mailbox $mailbox
 	 * @param int $criteria
-	 * @param int[] $knownIds
 	 * @param bool $partialOnly
-	 *
 	 * @param string|null $filter
+	 *
+	 * @param int[] $knownIds
 	 *
 	 * @return Response
 	 * @throws ClientException
@@ -111,17 +106,20 @@ class SyncService {
 	public function syncMailbox(Account $account,
 		Mailbox $mailbox,
 		int $criteria,
-		?array $knownIds = null,
-		?int $lastMessageTimestamp,
 		bool $partialOnly,
+		?int $lastMessageTimestamp,
+		?array $knownIds = null,
 		string $sortOrder = IMailSearch::ORDER_NEWEST_FIRST,
 		?string $filter = null): Response {
 		if ($partialOnly && !$mailbox->isCached()) {
 			throw MailboxNotCachedException::from($mailbox);
 		}
 
+		$client = $this->clientFactory->getClient($account);
+
 		$this->synchronizer->sync(
 			$account,
+			$client,
 			$mailbox,
 			$this->logger,
 			$criteria,
@@ -129,7 +127,9 @@ class SyncService {
 			!$partialOnly
 		);
 
-		$this->mailboxSync->syncStats($account, $mailbox);
+		$this->mailboxSync->syncStats($client, $mailbox);
+
+		$client->logout();
 
 		$query = $filter === null ? null : $this->filterStringParser->parse($filter);
 		return $this->getDatabaseSyncChanges(

@@ -3,24 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @copyright 2019 Christoph Wurst <christoph@winzerhof-wurst.at>
- *
- * @author 2019 Christoph Wurst <christoph@winzerhof-wurst.at>
- *
- * @license GNU AGPL version 3 or any later version
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2019 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 namespace OCA\Mail\Db;
@@ -99,7 +83,7 @@ class MailboxMapper extends QBMapper {
 			return $this->findEntity($select);
 		} catch (MultipleObjectsReturnedException $e) {
 			// Not possible due to DB constraints
-			throw new ServiceException("The impossible has happened", 42, $e);
+			throw new ServiceException('The impossible has happened', 42, $e);
 		}
 	}
 
@@ -124,7 +108,7 @@ class MailboxMapper extends QBMapper {
 			return $this->findEntity($select);
 		} catch (MultipleObjectsReturnedException $e) {
 			// Not possible due to DB constraints
-			throw new ServiceException("The impossible has happened", 42, $e);
+			throw new ServiceException('The impossible has happened', 42, $e);
 		}
 	}
 
@@ -169,7 +153,7 @@ class MailboxMapper extends QBMapper {
 			return $this->findEntity($select);
 		} catch (MultipleObjectsReturnedException $e) {
 			// Not possible due to DB constraints
-			throw new ServiceException("The impossible has happened", 42, $e);
+			throw new ServiceException('The impossible has happened', 42, $e);
 		}
 	}
 
@@ -285,11 +269,11 @@ class MailboxMapper extends QBMapper {
 	public function findFlaggedImportantUids(int $mailboxId) : array {
 		$qb = $this->db->getQueryBuilder();
 		$query = $qb->select('uid')
-				->from('mail_messages')
-				->where(
-					$qb->expr()->eq('mailbox_id', $qb->createNamedParameter($mailboxId)),
-					$qb->expr()->eq('flag_important', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL))
-				);
+			->from('mail_messages')
+			->where(
+				$qb->expr()->eq('mailbox_id', $qb->createNamedParameter($mailboxId)),
+				$qb->expr()->eq('flag_important', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL))
+			);
 
 		$cursor = $query->executeQuery();
 		$uids = array_map(static function (array $row) {

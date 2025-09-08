@@ -3,25 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @copyright 2020 Christoph Wurst <christoph@winzerhof-wurst.at>
- *
- * @author 2020 Christoph Wurst <christoph@winzerhof-wurst.at>
- * @author 2023 Richard Steinmetz <richard@steinmetz.cloud>
- *
- * @license GNU AGPL version 3 or any later version
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 namespace OCA\Mail\Service\Sync;
@@ -29,11 +12,14 @@ namespace OCA\Mail\Service\Sync;
 use Horde_Imap_Client;
 use Horde_Imap_Client_Base;
 use Horde_Imap_Client_Exception;
+use Horde_Imap_Client_Ids;
 use OCA\Mail\Account;
 use OCA\Mail\Contracts\IMailManager;
 use OCA\Mail\Db\Mailbox;
 use OCA\Mail\Db\MailboxMapper;
 use OCA\Mail\Db\MessageMapper as DatabaseMessageMapper;
+use OCA\Mail\Db\Tag;
+use OCA\Mail\Db\TagMapper;
 use OCA\Mail\Events\NewMessagesSynchronized;
 use OCA\Mail\Events\SynchronizationEvent;
 use OCA\Mail\Exception\ClientException;
@@ -48,7 +34,9 @@ use OCA\Mail\IMAP\MessageMapper as ImapMessageMapper;
 use OCA\Mail\IMAP\Sync\Request;
 use OCA\Mail\IMAP\Sync\Synchronizer;
 use OCA\Mail\Model\IMAPMessage;
+use OCA\Mail\Service\Classification\NewMessagesClassifier;
 use OCA\Mail\Support\PerformanceLogger;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\EventDispatcher\IEventDispatcher;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -73,9 +61,6 @@ class ImapToDbSynchronizer {
 	/** @var MailboxMapper */
 	private $mailboxMapper;
 
-	/** @var DatabaseMessageMapper */
-	private $messageMapper;
-
 	/** @var Synchronizer */
 	private $synchronizer;
 
@@ -91,6 +76,9 @@ class ImapToDbSynchronizer {
 	/** @var IMailManager */
 	private $mailManager;
 
+	private TagMapper $tagMapper;
+	private NewMessagesClassifier $newMessagesClassifier;
+
 	public function __construct(DatabaseMessageMapper $dbMapper,
 		IMAPClientFactory $clientFactory,
 		ImapMessageMapper $imapMapper,
@@ -100,17 +88,20 @@ class ImapToDbSynchronizer {
 		IEventDispatcher $dispatcher,
 		PerformanceLogger $performanceLogger,
 		LoggerInterface $logger,
-		IMailManager $mailManager) {
+		IMailManager $mailManager,
+		TagMapper $tagMapper,
+		NewMessagesClassifier $newMessagesClassifier) {
 		$this->dbMapper = $dbMapper;
 		$this->clientFactory = $clientFactory;
 		$this->imapMapper = $imapMapper;
 		$this->mailboxMapper = $mailboxMapper;
-		$this->messageMapper = $messageMapper;
 		$this->synchronizer = $synchronizer;
 		$this->dispatcher = $dispatcher;
 		$this->performanceLogger = $performanceLogger;
 		$this->logger = $logger;
 		$this->mailManager = $mailManager;
+		$this->tagMapper = $tagMapper;
+		$this->newMessagesClassifier = $newMessagesClassifier;
 	}
 
 	/**
@@ -124,18 +115,24 @@ class ImapToDbSynchronizer {
 		$rebuildThreads = false;
 		$trashMailboxId = $account->getMailAccount()->getTrashMailboxId();
 		$snoozeMailboxId = $account->getMailAccount()->getSnoozeMailboxId();
+		$sentMailboxId = $account->getMailAccount()->getSentMailboxId();
 		$trashRetentionDays = $account->getMailAccount()->getTrashRetentionDays();
+
+		$client = $this->clientFactory->getClient($account);
+
 		foreach ($this->mailboxMapper->findAll($account) as $mailbox) {
 			$syncTrash = $trashMailboxId === $mailbox->getId() && $trashRetentionDays !== null;
 			$syncSnooze = $snoozeMailboxId === $mailbox->getId();
+			$syncSent = $sentMailboxId === $mailbox->getId() || $mailbox->isSpecialUse('sent');
 
-			if (!$syncTrash && !$mailbox->isInbox() && !$syncSnooze && !$mailbox->getSyncInBackground()) {
-				$logger->debug("Skipping mailbox sync for " . $mailbox->getId());
+			if (!$syncTrash && !$mailbox->isInbox() && !$syncSnooze && !$mailbox->getSyncInBackground() && !$syncSent) {
+				$logger->debug('Skipping mailbox sync for ' . $mailbox->getId());
 				continue;
 			}
-			$logger->debug("Syncing " . $mailbox->getId());
+			$logger->debug('Syncing ' . $mailbox->getId());
 			if ($this->sync(
 				$account,
+				$client,
 				$mailbox,
 				$logger,
 				$criteria,
@@ -146,6 +143,9 @@ class ImapToDbSynchronizer {
 				$rebuildThreads = true;
 			}
 		}
+
+		$client->logout();
+
 		$this->dispatcher->dispatchTyped(
 			new SynchronizationEvent(
 				$account,
@@ -166,7 +166,7 @@ class ImapToDbSynchronizer {
 	 */
 	public function clearCache(Account $account,
 		Mailbox $mailbox): void {
-		$id = $account->getId() . ":" . $mailbox->getName();
+		$id = $account->getId() . ':' . $mailbox->getName();
 		try {
 			$this->mailboxMapper->lockForNewSync($mailbox);
 			$this->mailboxMapper->lockForChangeSync($mailbox);
@@ -191,8 +191,8 @@ class ImapToDbSynchronizer {
 	 * @param Mailbox $mailbox
 	 */
 	private function resetCache(Account $account, Mailbox $mailbox): void {
-		$id = $account->getId() . ":" . $mailbox->getName();
-		$this->messageMapper->deleteAll($mailbox);
+		$id = $account->getId() . ':' . $mailbox->getName();
+		$this->dbMapper->deleteAll($mailbox);
 		$this->logger->debug("All messages of $id cleared");
 		$mailbox->setSyncNewToken(null);
 		$mailbox->setSyncChangedToken(null);
@@ -207,6 +207,7 @@ class ImapToDbSynchronizer {
 	 * @return bool whether to rebuild threads or not
 	 */
 	public function sync(Account $account,
+		Horde_Imap_Client_Base $client,
 		Mailbox $mailbox,
 		LoggerInterface $logger,
 		int $criteria = Horde_Imap_Client::SYNC_NEWMSGSUIDS | Horde_Imap_Client::SYNC_FLAGSUIDS | Horde_Imap_Client::SYNC_VANISHEDUIDS,
@@ -218,7 +219,6 @@ class ImapToDbSynchronizer {
 			return $rebuildThreads;
 		}
 
-		$client = $this->clientFactory->getClient($account);
 		$client->login(); // Need to login before fetching capabilities.
 
 		// There is no partial sync when using QRESYNC. As per RFC the client will always pull
@@ -227,23 +227,25 @@ class ImapToDbSynchronizer {
 		// call it a day because Horde caches unrelated/unrequested changes until the next
 		// operation. However, our cache is not reliable as some instance might use APCu which
 		// isn't shared between cron and web requests.
+		$hasQresync = false;
 		if ($client->capability->isEnabled('QRESYNC')) {
-			$this->logger->debug("Forcing full sync due to QRESYNC");
+			$this->logger->debug('Forcing full sync due to QRESYNC');
+			$hasQresync = true;
 			$criteria |= Horde_Imap_Client::SYNC_NEWMSGSUIDS
 				| Horde_Imap_Client::SYNC_FLAGSUIDS
 				| Horde_Imap_Client::SYNC_VANISHEDUIDS;
 		}
 
 		if ($force || ($criteria & Horde_Imap_Client::SYNC_NEWMSGSUIDS)) {
-			$logger->debug("Locking mailbox " . $mailbox->getId() . " for new messages sync");
+			$logger->debug('Locking mailbox ' . $mailbox->getId() . ' for new messages sync');
 			$this->mailboxMapper->lockForNewSync($mailbox);
 		}
 		if ($force || ($criteria & Horde_Imap_Client::SYNC_FLAGSUIDS)) {
-			$logger->debug("Locking mailbox " . $mailbox->getId() . " for changed messages sync");
+			$logger->debug('Locking mailbox ' . $mailbox->getId() . ' for changed messages sync');
 			$this->mailboxMapper->lockForChangeSync($mailbox);
 		}
 		if ($force || ($criteria & Horde_Imap_Client::SYNC_VANISHEDUIDS)) {
-			$logger->debug("Locking mailbox " . $mailbox->getId() . " for vanished messages sync");
+			$logger->debug('Locking mailbox ' . $mailbox->getId() . ' for vanished messages sync');
 			$this->mailboxMapper->lockForVanishedSync($mailbox);
 		}
 
@@ -252,24 +254,24 @@ class ImapToDbSynchronizer {
 				|| $mailbox->getSyncNewToken() === null
 				|| $mailbox->getSyncChangedToken() === null
 				|| $mailbox->getSyncVanishedToken() === null) {
-				$logger->debug("Running initial sync for " . $mailbox->getId());
+				$logger->debug('Running initial sync for ' . $mailbox->getId());
 				$this->runInitialSync($client, $account, $mailbox, $logger);
 			} else {
 				try {
-					$logger->debug("Running partial sync for " . $mailbox->getId());
+					$logger->debug('Running partial sync for ' . $mailbox->getId());
 					// Only rebuild threads if there were new or vanished messages
-					$rebuildThreads = $this->runPartialSync($client, $account, $mailbox, $logger, $criteria, $knownUids);
+					$rebuildThreads = $this->runPartialSync($client, $account, $mailbox, $logger, $hasQresync, $criteria, $knownUids);
 				} catch (UidValidityChangedException $e) {
 					$logger->warning('Mailbox UID validity changed. Wiping cache and performing full sync for ' . $mailbox->getId());
 					$this->resetCache($account, $mailbox);
-					$logger->debug("Running initial sync for " . $mailbox->getId() . " after cache reset");
+					$logger->debug('Running initial sync for ' . $mailbox->getId() . ' after cache reset');
 					$this->runInitialSync($client, $account, $mailbox, $logger);
 				} catch (MailboxDoesNotSupportModSequencesException $e) {
 					$logger->warning('Mailbox does not support mod-sequences error occured. Wiping cache and performing full sync for ' . $mailbox->getId(), [
 						'exception' => $e,
 					]);
 					$this->resetCache($account, $mailbox);
-					$logger->debug("Running initial sync for " . $mailbox->getId() . " after cache reset - no mod-sequences error");
+					$logger->debug('Running initial sync for ' . $mailbox->getId() . ' after cache reset - no mod-sequences error');
 					$this->runInitialSync($client, $account, $mailbox, $logger);
 				}
 			}
@@ -280,19 +282,17 @@ class ImapToDbSynchronizer {
 			throw new ServiceException('Sync failed for ' . $account->getId() . ':' . $mailbox->getName() . ': ' . $e->getMessage(), 0, $e);
 		} finally {
 			if ($force || ($criteria & Horde_Imap_Client::SYNC_VANISHEDUIDS)) {
-				$logger->debug("Unlocking mailbox " . $mailbox->getId() . " from vanished messages sync");
+				$logger->debug('Unlocking mailbox ' . $mailbox->getId() . ' from vanished messages sync');
 				$this->mailboxMapper->unlockFromVanishedSync($mailbox);
 			}
 			if ($force || ($criteria & Horde_Imap_Client::SYNC_FLAGSUIDS)) {
-				$logger->debug("Unlocking mailbox " . $mailbox->getId() . " from changed messages sync");
+				$logger->debug('Unlocking mailbox ' . $mailbox->getId() . ' from changed messages sync');
 				$this->mailboxMapper->unlockFromChangedSync($mailbox);
 			}
 			if ($force || ($criteria & Horde_Imap_Client::SYNC_NEWMSGSUIDS)) {
-				$logger->debug("Unlocking mailbox " . $mailbox->getId() . " from new messages sync");
+				$logger->debug('Unlocking mailbox ' . $mailbox->getId() . ' from new messages sync');
 				$this->mailboxMapper->unlockFromNewSync($mailbox);
 			}
-
-			$client->logout();
 		}
 
 		if (!$batchSync) {
@@ -316,7 +316,7 @@ class ImapToDbSynchronizer {
 		Horde_Imap_Client_Base $client,
 		Account $account,
 		Mailbox $mailbox,
-		LoggerInterface  $logger): void {
+		LoggerInterface $logger): void {
 		$perf = $this->performanceLogger->startWithLogger(
 			'Initial sync ' . $account->getId() . ':' . $mailbox->getName(),
 			$logger
@@ -356,7 +356,7 @@ class ImapToDbSynchronizer {
 			// We might need more attempts to fill the cache
 			$loggingMailboxId = $account->getId() . ':' . $mailbox->getName();
 			$total = $imapMessages['total'];
-			$cached = count($this->messageMapper->findAllUids($mailbox));
+			$cached = count($this->dbMapper->findAllUids($mailbox));
 			$perf->step('find number of cached UIDs');
 
 			$perf->end();
@@ -383,6 +383,7 @@ class ImapToDbSynchronizer {
 		Account $account,
 		Mailbox $mailbox,
 		LoggerInterface $logger,
+		bool $hasQresync,
 		int $criteria,
 		?array $knownUids = null): bool {
 		$newOrVanished = false;
@@ -394,15 +395,19 @@ class ImapToDbSynchronizer {
 		$uids = $knownUids ?? $this->dbMapper->findAllUids($mailbox);
 		$perf->step('get all known UIDs');
 
+		$requestId = base64_encode(random_bytes(16));
+
 		if ($criteria & Horde_Imap_Client::SYNC_NEWMSGSUIDS) {
 			$response = $this->synchronizer->sync(
 				$client,
 				new Request(
+					$requestId,
 					$mailbox->getName(),
 					$mailbox->getSyncNewToken(),
 					$uids
 				),
 				$account->getUserId(),
+				$hasQresync,
 				Horde_Imap_Client::SYNC_NEWMSGSUIDS
 			);
 			$perf->step('get new messages via Horde');
@@ -420,12 +425,30 @@ class ImapToDbSynchronizer {
 				});
 			}
 
+			$importantTag = null;
+			try {
+				$importantTag = $this->tagMapper->getTagByImapLabel(Tag::LABEL_IMPORTANT, $account->getUserId());
+			} catch (DoesNotExistException $e) {
+				$this->logger->error('Could not find important tag for ' . $account->getUserId() . ' ' . $e->getMessage(), [
+					'exception' => $e,
+				]);
+			}
+
 			foreach (array_chunk($newMessages, 500) as $chunk) {
 				$dbMessages = array_map(static function (IMAPMessage $imapMessage) use ($mailbox, $account) {
 					return $imapMessage->toDbMessage($mailbox->getId(), $account->getMailAccount());
 				}, $chunk);
 
 				$this->dbMapper->insertBulk($account, ...$dbMessages);
+
+				if ($importantTag) {
+					$this->newMessagesClassifier->classifyNewMessages(
+						$dbMessages,
+						$mailbox,
+						$account,
+						$importantTag,
+					);
+				}
 
 				$this->dispatcher->dispatch(
 					NewMessagesSynchronized::class,
@@ -442,11 +465,13 @@ class ImapToDbSynchronizer {
 			$response = $this->synchronizer->sync(
 				$client,
 				new Request(
+					$requestId,
 					$mailbox->getName(),
 					$mailbox->getSyncChangedToken(),
 					$uids
 				),
 				$account->getUserId(),
+				$hasQresync,
 				Horde_Imap_Client::SYNC_FLAGSUIDS
 			);
 			$perf->step('get changed messages via Horde');
@@ -472,11 +497,13 @@ class ImapToDbSynchronizer {
 			$response = $this->synchronizer->sync(
 				$client,
 				new Request(
+					$requestId,
 					$mailbox->getName(),
 					$mailbox->getSyncVanishedToken(),
 					$uids
 				),
 				$account->getUserId(),
+				$hasQresync,
 				Horde_Imap_Client::SYNC_VANISHEDUIDS
 			);
 			$perf->step('get vanished messages via Horde');
@@ -499,5 +526,50 @@ class ImapToDbSynchronizer {
 		$perf->end();
 
 		return $newOrVanished;
+	}
+
+	/**
+	 * Run a (rather costly) sync to delete cached messages which are not present on IMAP anymore.
+	 *
+	 * @throws MailboxLockedException
+	 * @throws ServiceException
+	 */
+	public function repairSync(
+		Account $account,
+		Mailbox $mailbox,
+		LoggerInterface $logger,
+	): void {
+		$this->mailboxMapper->lockForVanishedSync($mailbox);
+
+		$perf = $this->performanceLogger->startWithLogger(
+			'Repair sync for ' . $account->getId() . ':' . $mailbox->getName(),
+			$logger,
+		);
+
+		// Need to use a client without a cache here (to disable QRESYNC entirely)
+		$client = $this->clientFactory->getClient($account, false);
+		try {
+			$knownUids = $this->dbMapper->findAllUids($mailbox);
+			$hordeMailbox = new \Horde_Imap_Client_Mailbox($mailbox->getName());
+			$phantomVanishedUids = $client->vanished($hordeMailbox, 0, [
+				'ids' => new Horde_Imap_Client_Ids($knownUids),
+			])->ids;
+			if (count($phantomVanishedUids) > 0) {
+				$this->dbMapper->deleteByUid($mailbox, ...$phantomVanishedUids);
+			}
+		} catch (Throwable $e) {
+			$message = sprintf(
+				'Repair sync failed for %d:%s: %s',
+				$account->getId(),
+				$mailbox->getName(),
+				$e->getMessage(),
+			);
+			throw new ServiceException($message, 0, $e);
+		} finally {
+			$this->mailboxMapper->unlockFromVanishedSync($mailbox);
+			$client->logout();
+		}
+
+		$perf->end();
 	}
 }

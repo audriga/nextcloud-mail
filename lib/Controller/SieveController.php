@@ -3,23 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @author Daniel Kesselberg <mail@danielkesselberg.de>
- * @author Richard Steinmetz <richard@steinmetz.cloud>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2021 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\Controller;
@@ -36,12 +21,14 @@ use OCA\Mail\Sieve\SieveClientFactory;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\Attribute\OpenAPI;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\IRequest;
 use OCP\Security\ICrypto;
 use OCP\Security\IRemoteHostValidator;
 use Psr\Log\LoggerInterface;
 
+#[OpenAPI(scope: OpenAPI::SCOPE_IGNORE)]
 class SieveController extends Controller {
 	private MailAccountMapper $mailAccountMapper;
 	private SieveClientFactory $sieveClientFactory;
@@ -50,7 +37,8 @@ class SieveController extends Controller {
 	private IRemoteHostValidator $hostValidator;
 	private LoggerInterface $logger;
 
-	public function __construct(IRequest $request,
+	public function __construct(
+		IRequest $request,
 		string $UserId,
 		MailAccountMapper $mailAccountMapper,
 		SieveClientFactory $sieveClientFactory,
@@ -134,7 +122,7 @@ class SieveController extends Controller {
 		int $sievePort,
 		string $sieveUser,
 		string $sievePassword,
-		string $sieveSslMode
+		string $sieveSslMode,
 	): JSONResponse {
 		if (!$this->hostValidator->isValid($sieveHost)) {
 			return MailJsonResponse::fail(
@@ -153,26 +141,25 @@ class SieveController extends Controller {
 			$mailAccount->setSieveEnabled(false);
 			$mailAccount->setSieveHost(null);
 			$mailAccount->setSievePort(null);
+			$mailAccount->setSieveSslMode(null);
 			$mailAccount->setSieveUser(null);
 			$mailAccount->setSievePassword(null);
-			$mailAccount->setSieveSslMode(null);
 
 			$this->mailAccountMapper->save($mailAccount);
 			return new JSONResponse(['sieveEnabled' => $mailAccount->isSieveEnabled()]);
 		}
 
-		if (empty($sieveUser)) {
+		if (empty($sieveUser) && empty($sievePassword)) {
+			$useImapCredentials = true;
 			$sieveUser = $mailAccount->getInboundUser();
-		}
-
-		if (empty($sievePassword)) {
-			$sievePassword = $mailAccount->getInboundPassword();
+			/** @psalm-suppress PossiblyNullArgument */
+			$sievePassword = $this->crypto->decrypt($mailAccount->getInboundPassword());
 		} else {
-			$sievePassword = $this->crypto->encrypt($sievePassword);
+			$useImapCredentials = false;
 		}
 
 		try {
-			$this->sieveClientFactory->createClient($sieveHost, $sievePort, $sieveUser, $sievePassword, $sieveSslMode);
+			$this->sieveClientFactory->createClient($sieveHost, $sievePort, $sieveUser, $sievePassword, $sieveSslMode, null);
 		} catch (ManagesieveException $e) {
 			throw new CouldNotConnectException($e, 'ManageSieve', $sieveHost, $sievePort);
 		}
@@ -180,9 +167,14 @@ class SieveController extends Controller {
 		$mailAccount->setSieveEnabled(true);
 		$mailAccount->setSieveHost($sieveHost);
 		$mailAccount->setSievePort($sievePort);
-		$mailAccount->setSieveUser($mailAccount->getInboundUser() === $sieveUser ? null : $sieveUser);
-		$mailAccount->setSievePassword($mailAccount->getInboundPassword() === $sievePassword ? null : $sievePassword);
 		$mailAccount->setSieveSslMode($sieveSslMode);
+		if ($useImapCredentials) {
+			$mailAccount->setSieveUser(null);
+			$mailAccount->setSievePassword(null);
+		} else {
+			$mailAccount->setSieveUser($sieveUser);
+			$mailAccount->setSievePassword($this->crypto->encrypt($sievePassword));
+		}
 
 		$this->mailAccountMapper->save($mailAccount);
 		return new JSONResponse(['sieveEnabled' => $mailAccount->isSieveEnabled()]);

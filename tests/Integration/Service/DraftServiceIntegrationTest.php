@@ -3,22 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @author Anna Larch <anna.larch@gmx.net>
- *
- * Mail
- *
- * This code is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 namespace OCA\Mail\Tests\Integration\Service;
@@ -86,7 +72,7 @@ class DraftServiceIntegrationTest extends TestCase {
 	/** @var Folder */
 	private $userFolder;
 
-	/**  @var AccountService|\PHPUnit\Framework\MockObject\MockObject */
+	/** @var AccountService|\PHPUnit\Framework\MockObject\MockObject */
 	private $accountService;
 
 	/** @var ITimeFactory|\PHPUnit\Framework\MockObject\MockObject */
@@ -143,7 +129,7 @@ class DraftServiceIntegrationTest extends TestCase {
 		$message->setType(LocalMessage::TYPE_DRAFT);
 		$message->setAccountId($this->account->getId());
 		$message->setSubject('subject');
-		$message->setBody('message');
+		$message->setBodyHtml('message');
 		$message->setHtml(true);
 
 		$to = [[
@@ -167,7 +153,7 @@ class DraftServiceIntegrationTest extends TestCase {
 		$message->setType(LocalMessage::TYPE_DRAFT);
 		$message->setAccountId($this->account->getId());
 		$message->setSubject('subject');
-		$message->setBody('message');
+		$message->setBodyHtml('message');
 		$message->setHtml(true);
 
 		$to = [[
@@ -190,7 +176,7 @@ class DraftServiceIntegrationTest extends TestCase {
 		$message->setType(LocalMessage::TYPE_DRAFT);
 		$message->setAccountId($this->account->getId());
 		$message->setSubject('subject');
-		$message->setBody('message');
+		$message->setBodyHtml('message');
 		$message->setHtml(true);
 
 		$to = [[
@@ -219,7 +205,7 @@ class DraftServiceIntegrationTest extends TestCase {
 		$message->setType(LocalMessage::TYPE_DRAFT);
 		$message->setAccountId($this->account->getId());
 		$message->setSubject('subject');
-		$message->setBody('message');
+		$message->setBodyHtml('message');
 		$message->setHtml(true);
 
 		$to = [[
@@ -253,7 +239,7 @@ class DraftServiceIntegrationTest extends TestCase {
 		$message->setType(LocalMessage::TYPE_DRAFT);
 		$message->setAccountId($this->account->getId());
 		$message->setSubject('subject');
-		$message->setBody('message');
+		$message->setBodyHtml('message');
 		$message->setHtml(true);
 
 		$to = [[

@@ -1,24 +1,7 @@
 <!--
-  - @copyright 2023 Richard Steinmetz <richard@steinmetz.cloud>
-  -
-  - @author 2023 Richard Steinmetz <richard@steinmetz.cloud>
-  - @author 2023 Hamza Mahjoubi <hamzamahjoubi221@gmail.com>
-  -
-  - @license AGPL-3.0-or-later
-  -
-  - This program is free software: you can redistribute it and/or modify
-  - it under the terms of the GNU Affero General Public License as
-  - published by the Free Software Foundation, either version 3 of the
-  - License, or (at your option) any later version.
-  -
-  - This program is distributed in the hope that it will be useful,
-  - but WITHOUT ANY WARRANTY; without even the implied warranty of
-  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  - GNU Affero General Public License for more details.
-  -
-  - You should have received a copy of the GNU Affero General Public License
-  - along with this program.  If not, see <http://www.gnu.org/licenses/>.
-  -->
+  - SPDX-FileCopyrightText: 2023 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 
 <template>
 	<div class="certificate-settings">
@@ -53,10 +36,11 @@
 <script>
 import { NcSelect, NcButton, NcNoteCard } from '@nextcloud/vue'
 import { compareSmimeCertificates } from '../util/smime.js'
-import { mapGetters } from 'vuex'
 import { showError, showSuccess } from '@nextcloud/dialogs'
 import Logger from '../logger.js'
 import moment from '@nextcloud/moment'
+import useMainStore from '../store/mainStore.js'
+import { mapStores, mapState } from 'pinia'
 
 export default {
 	name: 'CertificateSettings',
@@ -78,7 +62,8 @@ export default {
 		}
 	},
 	computed: {
-		...mapGetters({
+		...mapStores(useMainStore),
+		...mapState(useMainStore, {
 			smimeCertificates: 'getSmimeCertificates',
 		}),
 		savedCertificate: {
@@ -137,7 +122,7 @@ export default {
 		/**
 		 * The select option for no certificate
 		 *
-		 * @return {{label: string, isChainVerified: bool}}
+		 * @return {{label: string, isChainVerified: boolean}}
 		 */
 		noCertificateOption() {
 			return {
@@ -150,7 +135,7 @@ export default {
 	methods: {
 		async updateSmimeCertificate() {
 			if (this.alias.isAccountCertificate) {
-				await this.$store.dispatch('updateAccountSmimeCertificate', {
+				await this.mainStore.updateAccountSmimeCertificate({
 					account: this.account,
 					smimeCertificateId: this.certificate.id,
 				}).then(() => {
@@ -161,7 +146,7 @@ export default {
 				},
 				)
 			} else {
-				await this.$store.dispatch('updateAlias', {
+				await this.mainStore.updateAlias({
 					account: this.account,
 					aliasId: this.alias.id,
 					alias: this.alias.alias,

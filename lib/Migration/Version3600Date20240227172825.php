@@ -3,23 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @author Christoph Wurst <christoph@winzerhof-wurst.at>
- *
- * @license GNU AGPL version 3 or any later version
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * SPDX-FileCopyrightText: 2024 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 namespace OCA\Mail\Migration;
@@ -32,7 +17,9 @@ use OCP\Migration\SimpleMigrationStep;
 
 class Version3600Date20240227172825 extends SimpleMigrationStep {
 
-	public function __construct(private IAppConfig $appConfig) {
+	public function __construct(
+		private IAppConfig $appConfig,
+	) {
 	}
 
 	/**
@@ -41,6 +28,7 @@ class Version3600Date20240227172825 extends SimpleMigrationStep {
 	 * @param array $options
 	 * @return null|ISchemaWrapper
 	 */
+	#[\Override]
 	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
 		$allowThreadSummary = $this->appConfig->getAppValue('enabled_thread_summary', 'no');
 		$this->appConfig->deleteAppValue('enabled_thread_summary');

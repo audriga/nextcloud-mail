@@ -3,24 +3,8 @@
 declare(strict_types=1);
 
 /**
- * @copyright 2022 Anna Larch <anna.larch@gmx.net>
- *
- * @author 2022 Anna Larch <anna.larch@gmx.net>
- *
- * @license GNU AGPL version 3 or any later version
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 namespace OCA\Mail\Tests\Integration\Db;
@@ -61,9 +45,10 @@ class LocalAttachmentMapperTest extends TestCase {
 
 	/** @var string */
 	private $user1 = 'user45678';
-	/** @var string  */
+	/** @var string */
 	private $user2 = 'dontFindMe';
 	private array $localMessageIds;
+	private array $attachmentIds;
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -112,7 +97,7 @@ class LocalAttachmentMapperTest extends TestCase {
 		$message1->setAliasId(3);
 		$message1->setSendAt(3);
 		$message1->setSubject('testSaveLocalAttachments');
-		$message1->setBody('message');
+		$message1->setBodyHtml('message');
 		$message1->setHtml(true);
 		$message1->setInReplyToMessageId('abcdefg');
 		$message1 = $this->localMessageMapper->insert($message1);
@@ -122,7 +107,7 @@ class LocalAttachmentMapperTest extends TestCase {
 		$message2->setAliasId(3);
 		$message2->setSendAt(3);
 		$message2->setSubject('testSaveLocalAttachments');
-		$message2->setBody('message');
+		$message2->setBodyHtml('message');
 		$message2->setHtml(true);
 		$message2->setInReplyToMessageId('abcdefg');
 		$message2 = $this->localMessageMapper->insert($message2);

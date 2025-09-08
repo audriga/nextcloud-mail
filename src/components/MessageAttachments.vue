@@ -1,23 +1,7 @@
 <!--
-  - @copyright 2018 Christoph Wurst <christoph@winzerhof-wurst.at>
-  -
-  - @author 2018 Christoph Wurst <christoph@winzerhof-wurst.at>
-  -
-  - @license AGPL-3.0-or-later
-  -
-  - This program is free software: you can redistribute it and/or modify
-  - it under the terms of the GNU Affero General Public License as
-  - published by the Free Software Foundation, either version 3 of the
-  - License, or (at your option) any later version.
-  -
-  - This program is distributed in the hope that it will be useful,
-  - but WITHOUT ANY WARRANTY; without even the implied warranty of
-  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  - GNU Affero General Public License for more details.
-  -
-  - You should have received a copy of the GNU Affero General Public License
-  - along with this program.  If not, see <http://www.gnu.org/licenses/>.
-  -->
+  - SPDX-FileCopyrightText: 2018 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 
 <template>
 	<div v-if="attachments.length > 0" class="mail-message-attachments" :class="hasNextLine ? 'has-next-line' : ''">
@@ -41,8 +25,8 @@
 		<div v-if="hasNextLine"
 			class="show-more-attachments"
 			@click="isToggled = !isToggled">
-			<ChevronDown v-if="isToggled" :size="24" />
-			<ChevronUp v-if="!isToggled" :size="24" />
+			<ChevronDown v-if="isToggled" :size="20" />
+			<ChevronUp v-if="!isToggled" :size="20" />
 			<span v-if="isToggled">
 				{{ n('mail', 'View {count} more attachment', 'View {count} more attachments', (attachments.length - visible), { count: attachments.length - visible }) }}
 			</span>
@@ -51,9 +35,16 @@
 			</span>
 		</div>
 		<p v-if="moreThanOne" class="attachments-button-wrapper">
+			<FilePicker v-if="isFilePickerOpen"
+				:name="t('mail', 'Choose a folder to store the attachments in')"
+				:buttons="saveAttachementButtons"
+				:allow-pick-directory="true"
+				:multiselect="false"
+				:mimetype-filter="['httpd/unix-directory']"
+				@close="()=>isFilePickerOpen = false" />
 			<span class="attachment-link"
 				:disabled="savingToCloud"
-				@click="saveAll">
+				@click="() => isFilePickerOpen = true">
 				<CloudDownload v-if="!savingToCloud" :size="18" />
 				<IconLoading v-else class="spin" :size="18" />
 				{{ t('mail', 'Save all to Files') }}
@@ -70,15 +61,16 @@
 <script>
 import { basename } from '@nextcloud/paths'
 import { NcLoadingIcon as IconLoading } from '@nextcloud/vue'
+import { showError, showSuccess } from '@nextcloud/dialogs'
+import { FilePickerVue as FilePicker } from '@nextcloud/dialogs/filepicker.js'
 import { generateUrl } from '@nextcloud/router'
-import { getFilePickerBuilder } from '@nextcloud/dialogs'
 import { saveAttachmentsToFiles } from '../service/AttachmentService.js'
 
 import MessageAttachment from './MessageAttachment.vue'
 import Logger from '../logger.js'
 
-import Download from 'vue-material-design-icons/Download.vue'
-import CloudDownload from 'vue-material-design-icons/CloudDownload.vue'
+import Download from 'vue-material-design-icons/TrayArrowDown.vue'
+import CloudDownload from 'vue-material-design-icons/CloudDownloadOutline.vue'
 import ChevronDown from 'vue-material-design-icons/ChevronDown.vue'
 import ChevronUp from 'vue-material-design-icons/ChevronUp.vue'
 
@@ -91,6 +83,7 @@ export default {
 		CloudDownload,
 		ChevronDown,
 		ChevronUp,
+		FilePicker,
 	},
 	props: {
 		envelope: {
@@ -110,6 +103,14 @@ export default {
 			attachmentImageURL: '',
 			hasNextLine: false,
 			isToggled: false,
+			saveAttachementButtons: [
+				{
+					label: t('mail', 'Choose'),
+					callback: this.saveAll,
+					type: 'primary',
+				},
+			],
+			isFilePickerOpen: false,
 		}
 	},
 	computed: {
@@ -165,30 +166,20 @@ export default {
 		canPreview(fileInfo) {
 			return this.previewableFileInfos.includes(fileInfo)
 		},
-		saveAll() {
-			const picker = getFilePickerBuilder(t('mail', 'Choose a folder to store the attachments in'))
-				.setMultiSelect(false)
-				.addMimeTypeFilter('httpd/unix-directory')
-				.setModal(true)
-				.setType(1)
-				.allowDirectories(true)
-				.build()
-
-			const saveAttachments = (id) => (directory) => {
-				return saveAttachmentsToFiles(id, directory)
-			}
+		saveAll(dest) {
+			const path = dest[0].path
+			this.savingToCloud = true
 			const id = this.$route.params.threadId
 
-			return picker
-				.pick()
-				.then((dest) => {
-					this.savingToCloud = true
-					return dest
-				})
-				.then(saveAttachments(id))
-				.then(() => Logger.info('saved'))
-				.catch((error) => Logger.error('not saved', { error }))
-				.then(() => (this.savingToCloud = false))
+			saveAttachmentsToFiles(id, path).then(() => {
+				Logger.info('saved')
+				showSuccess(t('mail', 'Attachments saved to Files'))
+			}).catch((error) => {
+				Logger.error('not saved', error)
+				showError(t('mail', 'Error while saving attachments'))
+			}).finally(() => {
+				this.savingToCloud = false
+			})
 		},
 		downloadZip() {
 			window.location = this.zipUrl
@@ -277,6 +268,7 @@ export default {
 .oc-dialog {
 	z-index: 10000000;
 }
+
 .mail-message-attachments {
 	display:flex;
 	flex-wrap: wrap;
@@ -287,6 +279,7 @@ export default {
 	bottom:0;
 	background: linear-gradient(0deg, var(--color-main-background), var(--color-main-background) 90%, rgba(255, 255, 255, 0));
 }
+
 .mail-message-attachments--wrapper {
 	display:flex;
 	width:100%;

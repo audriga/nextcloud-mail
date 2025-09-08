@@ -3,13 +3,9 @@
 declare(strict_types=1);
 
 /**
- * Mail
- *
- * This file is licensed under the Affero General Public License version 3 or
- * later. See the COPYING file.
- *
- * @author Tahaa Karim <tahaalibra@gmail.com>
- * @copyright Tahaa Karim 2016
+ * SPDX-FileCopyrightText: 2016-2024 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-FileCopyrightText: 2016 ownCloud, Inc.
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 namespace OCA\Mail\Db;
@@ -75,7 +71,7 @@ class AliasMapper extends QBMapper {
 	 * @param int $accountId
 	 * @param string $currentUserId
 	 *
-	 * @return Alias[]
+	 * @return list<Alias>
 	 */
 	public function findAll(int $accountId, string $currentUserId): array {
 		$qb = $this->db->getQueryBuilder();

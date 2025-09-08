@@ -1,3 +1,7 @@
+<!--
+  - SPDX-FileCopyrightText: 2023 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 <template>
 	<Modal @close="onClose">
 		<div class="modal-content">
@@ -35,13 +39,13 @@
 				</label>
 			</div>
 			<!-- FIXME: is broken due to upstream select component serializing options to JSON -->
-			<NcSelect v-model="selectedCalendar"
+			<NcSelect v-model="selectedCalendarChoice"
 				label="displayname"
 				input-id="url"
 				:placeholder="t('mail', 'Select calendar')"
 				:aria-label-combobox="t('mail', 'Select calendar')"
 				:allow-empty="false"
-				:options="calendars">
+				:options="calendarChoices">
 				<template #option="{ id }">
 					<CalendarPickerOption :color="getCalendarById(id).color"
 						:displayname="getCalendarById(id).displayname" />
@@ -73,6 +77,8 @@ import Task from '../task.js'
 import CalendarPickerOption from './CalendarPickerOption.vue'
 import { showError, showSuccess } from '@nextcloud/dialogs'
 import moment from '@nextcloud/moment'
+import { mapStores } from 'pinia'
+import useMainStore from '../store/mainStore.js'
 
 export default {
 	name: 'TaskModal',
@@ -102,11 +108,12 @@ export default {
 			startTimezoneId: defaultTimezoneId,
 			endTimezoneId: defaultTimezoneId,
 			saving: false,
-			selectedCalendar: undefined,
+			selectedCalendarChoice: undefined,
 			note: this.envelope.previewText,
 		}
 	},
 	computed: {
+		...mapStores(useMainStore),
 		disabled() {
 			return this.saving || this.calendars.length === 0
 		},
@@ -117,10 +124,24 @@ export default {
 			return this.isAllDay ? 'date' : 'datetime'
 		},
 		tags() {
-			return this.$store.getters.getAllTags
+			return this.mainStore.getAllTags
 		},
 		calendars() {
-			return this.$store.getters.getTaskCalendarsForCurrentUser.map(calendar => ({ id: calendar.id, color: calendar.color, displayname: calendar.displayname }))
+			return this.mainStore.getTaskCalendarsForCurrentUser
+		},
+		calendarChoices() {
+			return this.calendars.map(calendar => ({
+				id: calendar.id,
+				color: calendar.color,
+				displayname: calendar.displayname,
+			}))
+		},
+		selectedCalendar() {
+			if (!this.selectedCalendarChoice) {
+				return undefined
+			}
+
+			return this.calendars.find((cal) => cal.id === this.selectedCalendarChoice.id)
 		},
 	},
 	created() {
@@ -129,9 +150,8 @@ export default {
 		})
 	},
 	async mounted() {
-
 		if (this.calendars.length) {
-			this.selectedCalendar = this.calendars[0]
+			this.selectedCalendarChoice = this.calendarChoices[0]
 		}
 	},
 	methods: {
@@ -147,7 +167,7 @@ export default {
 			this.$emit('close')
 		},
 		async createTask(taskData) {
-			const task = new Task('BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Nextcloud Mail v' + this.$store.getters.getAppVersion + '\nEND:VCALENDAR', taskData.calendar)
+			const task = new Task('BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Nextcloud Mail v' + this.mainStore.getAppVersion + '\nEND:VCALENDAR', taskData.calendar)
 			task.created = ICAL.Time.now()
 			task.summary = taskData.summary
 			task.hidesubtasks = 0
@@ -214,37 +234,38 @@ export default {
 	max-width: 490px !important;
 	max-height: 500px !important;
 }
+
 :deep(.calendar-picker-option__color-indicator){
-    margin-left: 10px !important;
+    margin-inline-start: 10px !important;
 }
+
 .modal-content {
 	padding: 30px 30px 20px !important;
 }
+
 input , textarea {
 	width: 100%;
 }
-:deep(input[type='text'].multiselect__input) {
+
+:deep(input[type='text']) {
 	padding: 0 !important;
 }
-:deep(.multiselect__single) {
-	margin-left: -18px;
-	width: 100px;
-}
-:deep(.multiselect__tags) {
-	border: none !important;
-}
+
 .all-day {
-	margin-left: -1px;
+	margin-inline-start: -1px;
 	margin-top: 5px;
 	margin-bottom: 5px;
 }
+
 .taskTitle {
 	margin-bottom: 5px;
 }
+
 .primary {
 	height: 44px !important;
-	float: right;
+	float: inline-end;
 }
+
 :deep(.mx-datepicker) {
 	width: 213px;
 }

@@ -1,24 +1,7 @@
 <!--
-  - @copyright Copyright (c) 2022 Richard Steinmetz <richard@steinmetz.cloud>
-  -
-  - @author Richard Steinmetz <richard@steinmetz.cloud>
-  -
-  - @license AGPL-3.0-or-later
-  -
-  - This program is free software: you can redistribute it and/or modify
-  - it under the terms of the GNU Affero General Public License as
-  - published by the Free Software Foundation, either version 3 of the
-  - License, or (at your option) any later version.
-  -
-  - This program is distributed in the hope that it will be useful,
-  - but WITHOUT ANY WARRANTY; without even the implied warranty of
-  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  - GNU Affero General Public License for more details.
-  -
-  - You should have received a copy of the GNU Affero General Public License
-  - along with this program. If not, see <http://www.gnu.org/licenses/>.
-  -
-  -->
+  - SPDX-FileCopyrightText: 2022 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 
 <template>
 	<div class="event-data">
@@ -60,12 +43,13 @@
 </template>
 
 <script>
-import AccountMultipleIcon from 'vue-material-design-icons/AccountMultiple.vue'
-import CalendarIcon from 'vue-material-design-icons/Calendar.vue'
-import MapMarkerIcon from 'vue-material-design-icons/MapMarker.vue'
-import { getReadableTimezoneName } from '@nextcloud/calendar-js'
+import AccountMultipleIcon from 'vue-material-design-icons/AccountMultipleOutline.vue'
+import CalendarIcon from 'vue-material-design-icons/CalendarOutline.vue'
+import MapMarkerIcon from 'vue-material-design-icons/MapMarkerOutline.vue'
+import { getReadableTimezoneName } from '@nextcloud/timezones'
 import moment from '@nextcloud/moment'
 import { removeMailtoPrefix } from '../../util/eventAttendee.js'
+import { DateTimeValue } from '@nextcloud/calendar-js'
 
 /**
  * Check whether two dates are on the exact same day, month and year.
@@ -204,7 +188,7 @@ export default {
 	gap: 5px;
 
 	&__heading {
-		margin-left: 36px;
+		margin-inline-start: 36px;
 	}
 
 	&__row {

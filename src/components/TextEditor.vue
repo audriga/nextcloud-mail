@@ -1,27 +1,14 @@
 <!--
-  - @copyright 2019 Christoph Wurst <christoph@winzerhof-wurst.at>
-  -
-  - @author 2019 Christoph Wurst <christoph@winzerhof-wurst.at>
-  - @author 2022 Richard Steinmetz <richard@steinmetz.cloud>
-  -
-  - @license AGPL-3.0-or-later
-  -
-  - This program is free software: you can redistribute it and/or modify
-  - it under the terms of the GNU Affero General Public License as
-  - published by the Free Software Foundation, either version 3 of the
-  - License, or (at your option) any later version.
-  -
-  - This program is distributed in the hope that it will be useful,
-  - but WITHOUT ANY WARRANTY; without even the implied warranty of
-  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  - GNU Affero General Public License for more details.
-  -
-  - You should have received a copy of the GNU Affero General Public License
-  - along with this program.  If not, see <http://www.gnu.org/licenses/>.
-  -->
+  - SPDX-FileCopyrightText: 2019 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 
 <template>
-	<div>
+	<div :class="{ 'editor-wrapper--bordered': isBordered }" class="editor-wrapper">
+		<div ref="toolbarContainer" class="toolbar" />
+
+		<div ref="editableContainer" class="editable" />
+
 		<ckeditor v-if="ready"
 			:value="value"
 			:config="config"
@@ -30,7 +17,6 @@
 			class="editor"
 			@input="onEditorInput"
 			@ready="onEditorReady" />
-		<div ref="container" class="toolbar" />
 	</div>
 </template>
 
@@ -38,7 +24,7 @@
 import CKEditor from '@ckeditor/ckeditor5-vue2'
 import AlignmentPlugin from '@ckeditor/ckeditor5-alignment/src/alignment.js'
 import { Mention } from '@ckeditor/ckeditor5-mention'
-import Editor from '@ckeditor/ckeditor5-editor-decoupled/src/decouplededitor.js'
+import Editor from '@ckeditor/ckeditor5-editor-classic/src/classiceditor.js'
 import EssentialsPlugin from '@ckeditor/ckeditor5-essentials/src/essentials.js'
 import BlockQuotePlugin from '@ckeditor/ckeditor5-block-quote/src/blockquote.js'
 import BoldPlugin from '@ckeditor/ckeditor5-basic-styles/src/bold.js'
@@ -46,24 +32,31 @@ import FontPlugin from '@ckeditor/ckeditor5-font/src/font.js'
 import ParagraphPlugin from '@ckeditor/ckeditor5-paragraph/src/paragraph.js'
 import HeadingPlugin from '@ckeditor/ckeditor5-heading/src/heading.js'
 import ItalicPlugin from '@ckeditor/ckeditor5-basic-styles/src/italic.js'
+import Underline from '@ckeditor/ckeditor5-basic-styles/src/underline.js'
+import Superscript from '@ckeditor/ckeditor5-basic-styles/src/superscript.js'
+import Subscript from '@ckeditor/ckeditor5-basic-styles/src/subscript.js'
 import LinkPlugin from '@ckeditor/ckeditor5-link/src/link.js'
-import ListStyle from '@ckeditor/ckeditor5-list/src/liststyle.js'
+import ListPlugin from '@ckeditor/ckeditor5-list/src/list.js'
+import ListProperties from '@ckeditor/ckeditor5-list/src/listproperties.js'
 import RemoveFormat from '@ckeditor/ckeditor5-remove-format/src/removeformat.js'
 import SignaturePlugin from '../ckeditor/signature/SignaturePlugin.js'
 import StrikethroughPlugin from '@ckeditor/ckeditor5-basic-styles/src/strikethrough.js'
 import QuotePlugin from '../ckeditor/quote/QuotePlugin.js'
 import Base64UploadAdapter from '@ckeditor/ckeditor5-upload/src/adapters/base64uploadadapter.js'
 import ImagePlugin from '@ckeditor/ckeditor5-image/src/image.js'
+import FindAndReplace from '@ckeditor/ckeditor5-find-and-replace/src/findandreplace.js'
 import ImageResizePlugin from '@ckeditor/ckeditor5-image/src/imageresize.js'
 import ImageUploadPlugin from '@ckeditor/ckeditor5-image/src/imageupload.js'
+import GeneralHtmlSupport from '@ckeditor/ckeditor5-html-support/src/generalhtmlsupport.js'
 import { DropdownView } from '@ckeditor/ckeditor5-ui'
 import MailPlugin from '../ckeditor/mail/MailPlugin.js'
-import { searchProvider, getLinkWithPicker } from '@nextcloud/vue/dist/Components/NcRichText.js'
+import { searchProvider, getLinkWithPicker } from '@nextcloud/vue/components/NcRichText'
 import { getLanguage } from '@nextcloud/l10n'
 import logger from '../logger.js'
 import PickerPlugin from '../ckeditor/smartpicker/PickerPlugin.js'
+import { autoCompleteByName } from '../service/ContactIntegrationService.js'
 import { emojiSearch, emojiAddRecent } from '@nextcloud/vue'
-
+import { toPlain, Text } from '../util/text.js'
 export default {
 	name: 'TextEditor',
 	components: {
@@ -94,6 +87,18 @@ export default {
 			type: Boolean,
 			default: false,
 		},
+		textBlocks: {
+			type: Array,
+			default: () => [],
+		},
+		isBordered: {
+			type: Boolean,
+			default: false,
+		},
+		readOnly: {
+			type: Boolean,
+			default: false,
+		},
 	},
 	data() {
 		const plugins = [
@@ -103,6 +108,9 @@ export default {
 			QuotePlugin,
 			PickerPlugin,
 			Mention,
+			LinkPlugin,
+			FindAndReplace,
+			GeneralHtmlSupport,
 		]
 		const toolbar = ['undo', 'redo']
 
@@ -112,16 +120,19 @@ export default {
 				AlignmentPlugin,
 				BoldPlugin,
 				ItalicPlugin,
-				BlockQuotePlugin,
-				LinkPlugin,
-				ListStyle,
-				FontPlugin,
-				RemoveFormat,
+				Underline,
 				StrikethroughPlugin,
+				Subscript,
+				Superscript,
+				BlockQuotePlugin,
+				ListPlugin,
 				ImagePlugin,
 				ImageUploadPlugin,
-				Base64UploadAdapter,
 				ImageResizePlugin,
+				ListProperties,
+				FontPlugin,
+				RemoveFormat,
+				Base64UploadAdapter,
 				MailPlugin,
 			])
 			toolbar.unshift(...[
@@ -130,16 +141,20 @@ export default {
 				'fontSize',
 				'bold',
 				'italic',
+				'underline',
+				'strikethrough',
 				'fontColor',
-				'imageUpload',
+				'subscript',
+				'superscript',
+				'fontBackgroundColor',
+				'insertImage',
 				'alignment',
 				'bulletedList',
 				'numberedList',
 				'blockquote',
-				'fontBackgroundColor',
-				'strikethrough',
 				'link',
 				'removeFormat',
+				'findAndReplace',
 			])
 		}
 
@@ -150,6 +165,7 @@ export default {
 			ready: false,
 			editor: Editor,
 			config: {
+				licenseKey: 'GPL',
 				placeholder: this.placeholder,
 				plugins,
 				toolbar: {
@@ -167,6 +183,16 @@ export default {
 							marker: '/',
 							feed: this.getLink,
 							itemRenderer: this.customLinkRenderer,
+						},
+						{
+							marker: '@',
+							feed: this.getContact,
+							itemRenderer: this.customRenderer,
+						},
+						{
+							marker: '!',
+							feed: this.getTextBlock,
+							itemRenderer: this.customRenderer,
 						},
 					],
 				},
@@ -191,6 +217,20 @@ export default {
 				emojiResults.unshift(':' + text)
 			}
 			return emojiResults
+		},
+		async getContact(text) {
+			if (text.length === 0) {
+				return []
+			}
+			let contactResults = await autoCompleteByName(text)
+			contactResults = contactResults.filter(result => result.email.length > 0)
+			return contactResults
+		},
+		getTextBlock(text) {
+			if (text.length === 0) {
+				return []
+			}
+			return this.textBlocks.filter(textBlock => textBlock.title.toLowerCase().includes(text.toLowerCase()))
 		},
 		 customEmojiRenderer(item) {
 			const itemElement = document.createElement('span')
@@ -220,6 +260,20 @@ export default {
 			usernameElement.classList.add('link-title')
 			usernameElement.textContent = `${item.title} `
 			itemElement.appendChild(icon)
+			itemElement.appendChild(usernameElement)
+
+			return itemElement
+		},
+		customRenderer(item, type) {
+			const itemElement = document.createElement('span')
+
+			itemElement.classList.add('custom-item')
+			itemElement.id = `mention-list-item-id-${item.id}`
+			const usernameElement = document.createElement('p')
+			const label = type === 'contact' ? item.label : item.title
+			usernameElement.classList.add('custom-item-username')
+			usernameElement.textContent = label
+
 			itemElement.appendChild(usernameElement)
 
 			return itemElement
@@ -284,7 +338,7 @@ export default {
 					/* webpackMode: "lazy-once" */
 					/* webpackPrefetch: true */
 					/* webpackPreload: true */
-					`@ckeditor/ckeditor5-build-balloon/build/translations/${language}`
+					`@ckeditor/ckeditor5-build-decoupled-document/build/translations/${language}`
 				)
 				this.showEditor(language)
 			} catch (error) {
@@ -305,12 +359,16 @@ export default {
 			logger.debug('TextEditor is ready', { editor })
 
 			// https://ckeditor.com/docs/ckeditor5/latest/examples/builds-custom/bottom-toolbar-editor.html
+			this.$refs.toolbarContainer.appendChild(editor.ui.view.toolbar.element)
+			this.$refs.editableContainer.appendChild(editor.ui.view.editable.element)
+			if (this.readOnly) {
+				editor.ui.view.toolbar.element.style.display = 'none'
+				editor.enableReadOnlyMode('text-block')
+			}
 			if (editor.ui) {
-				this.$refs.container.appendChild(editor.ui.view.toolbar.element)
 				this.overrideDropdownPositionsToNorth(editor, editor.ui.view.toolbar)
 				this.overrideTooltipPositions(editor.ui.view.toolbar)
 			}
-
 			editor.commands.get('mention')?.on('execute', (event, data) => {
 				event.stop()
 				const eventData = data[0]
@@ -329,7 +387,15 @@ export default {
 							console.debug('Smart picker promise rejected:', error)
 						})
 				}
+				if (eventData.marker === '@') {
+					this.editorInstance.execute('insertItem', { email: item.email[0], label: item.label }, '@')
+					this.$emit('mention', { email: item.email[0], label: item.label })
+				}
+				if (eventData.marker === '!') {
+					this.insertTextBlock(item, false)
+				}
 			}, { priority: 'high' })
+
 			this.editorInstance = editor
 
 			if (this.focus) {
@@ -340,7 +406,9 @@ export default {
 			if (this.html) {
 				this.$emit('show-toolbar', editor.ui._focusableToolbarDefinitions[0].toolbarView.element)
 			}
+
 			this.bus.on('append-to-body-at-cursor', this.appendToBodyAtCursor)
+			this.bus.on('insert-text-block', this.insertTextBlock)
 			this.$emit('ready', editor)
 		},
 		onEditorInput(text) {
@@ -362,11 +430,46 @@ export default {
 				throw new Error('Impossible to execute a command before editor is ready.')
 			}
 		},
+		insertTextBlock(textBlock, addTriggrer = true) {
+			if (addTriggrer) {
+				this.appendToBodyAtCursor('!')
+			}
+			let content = textBlock.content
+			if (!this.html) {
+				const text = new Text('html', content)
+				content = toPlain(text).value
+			}
+			this.editorInstance.execute('insertItem', { content, isHtml: this.html }, '!')
+		},
 	},
 }
 </script>
 
 <style lang="scss" scoped>
+.editor-wrapper--bordered{
+	--border-offset: calc(var(--border-width-input-focused, 2px) - var(--border-width-input, 2px));
+	margin-top: var(--default-grid-baseline);
+	border: var(--border-width-input, 2px) solid var(--color-border-maxcontrast);
+	border-radius:var(--border-radius-large);
+	height: 200px;
+	// to align with the text input in the text block modal
+	padding: 9px;
+
+	:deep(.ck.ck-editor__editable_inline) {
+		padding:0 !important;
+	}
+	&:focus {
+		padding: calc(9px - var(--border-offset));
+		border-color: var(--color-main-text);
+		border-width: var(--border-width-input-focused, 2px);
+	}
+	&:hover {
+		padding: calc(9px - var(--border-offset));
+		border-color: var(--color-main-text);
+		border-width: var(--border-width-input-focused, 2px);
+	}
+}
+
 .editor {
 	width: 100%;
 	height: calc(100% - 75px);
@@ -383,6 +486,7 @@ export default {
 :deep(a) {
 	color: #07d;
 }
+
 :deep(p) {
 	cursor: text;
 	margin: 0 !important;
@@ -397,15 +501,36 @@ https://github.com/ckeditor/ckeditor5/issues/1142
  .ck .ck-reset {
 	background: var(--color-main-background) !important;
  }
- .custom-item-username {
+/* Default ckeditor value of padding-inline-start, to overwrite the global styling from server */
+.ck-content ul, .ck-content ol {
+	padding-inline-start: 40px;
+}
+
+.ck-read-only {
+	color: var(--color-main-text) !important;
+	background-color: var(--color-main-background) !important;
+	opacity: 1 !important;
+	font-size: 100% !important;
+}
+
+.ck-list__item {
+	.ck-off {
+		background:var(--color-main-background) !important;
+	}
+	.ck-on {
+		background:var(--color-primary-element-light) !important;
+	}
+}
+
+.custom-item-username {
 	color: var(--color-main-text) !important;
  }
- .link-title{
+
+ .link-title {
 	color: var(--color-main-text) !important;
+	margin-inline-start: var(--default-grid-baseline) !important;
  }
- .link-icon{
-	filter : var(--background-invert-if-dark);
- }
+
  .custom-item {
 	width : 100% !important;
 	border-radius : 8px !important;
@@ -413,21 +538,109 @@ https://github.com/ckeditor/ckeditor5/issues/1142
 	display :block;
 	background:var(--color-main-background)!important;
  }
+
  .custom-item:hover {
 	background:var(--color-primary-element-light)!important;
  }
+
  .link-container{
 	border-radius :8px !important;
 	padding :4px 8px !important;
 	display : block;
 	width : 100% !important;
 	background:var(--color-main-background)!important;
+	img.link-icon {
+		width: 16px;
+		height: 16px;
+	}
  }
+
  .link-container:hover {
 	background:var(--color-primary-element-light)!important;
  }
+
 :root {
 	--ck-z-default: 10000;
 	--ck-balloon-border-width:  0;
+}
+
+.ck.ck-toolbar {
+	border-radius: var(--border-radius-large) !important;
+	background: none;
+}
+
+.ck-rounded-corners .ck.ck-dropdown__panel, .ck.ck-dropdown__panel.ck-rounded-corners {
+	border-radius: var(--border-radius-large) !important;
+	overflow: visible;
+}
+
+.ck.ck-list-styles-list {
+/* our composer is very small, having menus vertically shown is better */
+	grid-template-rows: repeat(3,auto) !important;
+	grid-template-columns: unset !important;
+}
+
+.ck.ck-button {
+	border-radius: var(--border-radius-element) !important;
+}
+
+.ck-powered-by-balloon {
+	display: none !important;
+}
+
+.editor-wrapper {
+	display: flex;
+	flex-direction: column-reverse;
+	height: 100%;
+
+	.toolbar {
+		position: sticky;
+		bottom: 0;
+		z-index: 10;
 	}
+
+	.editable {
+		flex-grow: 1;
+		overflow-y: auto;
+	}
+}
+
+.ck.ck-editor__editable.ck-focused:not(.ck-editor__nested-editable) {
+	border: none;
+	box-shadow: none;
+	width: 99%;
+	height: 97%;
+}
+
+.ck.ck-button, a.ck.ck-button {
+	font-size: small;
+	font-weight: normal;
+}
+
+.ck-source-editing-area {
+	height: 97%;
+	overflow: scroll;
+}
+
+.ck-source-editing-area textarea {
+	border: 0;
+}
+
+.ck.ck-editor__editable_inline {
+	width: 99%;
+	height: 97%;
+	border: 0;
+}
+
+.select, button:not(.button-vue,[class^=vs__]), .button, input[type=button], input[type=submit], input[type=reset] {
+	color: var(--color-main-text);
+}
+/* we need the paragraph field a bit smaller so it doesnt break the toolbar for signature */
+.ck.ck-dropdown.ck-heading-dropdown .ck-dropdown__button .ck-button__label {
+	width: 6em !important;
+}
+
+.ck.ck-editor__top .ck-sticky-panel .ck-sticky-panel__content {
+	border: none;
+}
 </style>

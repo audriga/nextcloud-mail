@@ -1,3 +1,7 @@
+/**
+ * SPDX-FileCopyrightText: 2018 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 import { generateUrl } from '@nextcloud/router'
 import axios from '@nextcloud/axios'
 import { curry } from 'ramda'
@@ -28,7 +32,7 @@ export function fetchEnvelope(accountId, id) {
 		})
 }
 
-export function fetchEnvelopes(accountId, mailboxId, query, cursor, limit) {
+export function fetchEnvelopes(accountId, mailboxId, query, cursor, limit, sort, view, cacheBuster) {
 	const url = generateUrl('/apps/mail/api/messages')
 	const params = {
 		mailboxId,
@@ -42,6 +46,15 @@ export function fetchEnvelopes(accountId, mailboxId, query, cursor, limit) {
 	}
 	if (cursor) {
 		params.cursor = cursor
+	}
+	if (sort) {
+		params.sort = sort
+	}
+	if (view) {
+		params.view = view
+	}
+	if (cacheBuster) {
+		params.v = cacheBuster
 	}
 
 	return axios
@@ -111,7 +124,7 @@ export async function clearCache(accountId, id) {
 /**
  * Set flags for envelope
  *
- * @param {int} id
+ * @param {number} id
  * @param {object} flags
  */
 export async function setEnvelopeFlags(id, flags) {
