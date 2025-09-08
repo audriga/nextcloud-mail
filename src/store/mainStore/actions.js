@@ -92,6 +92,9 @@ import {
 	syncEnvelopes as syncEnvelopesExternal,
 	unSnoozeMessage,
 	updateEnvelopeTag,
+	deleteTag,
+	sendRecipe,
+	updateSchema,
 } from '../../service/MessageService.js'
 import { showNewMessagesNotification } from '../../service/NotificationService.js'
 import { savePreference } from '../../service/PreferenceService.js'
@@ -1761,6 +1764,21 @@ export default function mainStoreActions() {
 				},
 			})
 		},
+		async sendRecipeToCookbook({ commit }, { recipe }) {
+        	return handleHttpAuthErrors(commit, async () => {
+        		const result = await sendRecipe(recipe)
+
+        		return result
+        	})
+       	},
+
+        async callLiveUri({ commit }, { liveUri }) {
+        	return handleHttpAuthErrors(commit, async () => {
+        		const result = await updateSchema(liveUri)
+
+        		return result
+        	})
+       	},
 		async setLayout({ list }) {
 			try {
 				this.setOneLineLayoutMutation({
