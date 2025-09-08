@@ -61,6 +61,8 @@ import {
 	unSnoozeMessage,
 	updateEnvelopeTag,
 	deleteTag,
+	sendRecipe,
+	updateSchema,
 } from '../../service/MessageService.js'
 import { moveDraft, updateDraft } from '../../service/DraftService.js'
 import * as AliasService from '../../service/AliasService.js'
@@ -1756,6 +1758,21 @@ export default function mainStoreActions() {
 				},
 			})
 		},
+		async sendRecipeToCookbook({ commit }, { recipe }) {
+        	return handleHttpAuthErrors(commit, async () => {
+        		const result = await sendRecipe(recipe)
+
+        		return result
+        	})
+       	},
+
+        async callLiveUri({ commit }, { liveUri }) {
+        	return handleHttpAuthErrors(commit, async () => {
+        		const result = await updateSchema(liveUri)
+
+        		return result
+        	})
+       	},
 		async setLayout({ list }) {
 			try {
 				this.setOneLineLayoutMutation({
