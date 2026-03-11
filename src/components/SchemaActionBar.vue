@@ -85,6 +85,10 @@ import OpenInNewIcon from 'vue-material-design-icons/OpenInNew.vue'
 import MapMarkerIcon from 'vue-material-design-icons/MapMarker.vue'
 import MapSearchOutlineIcon from 'vue-material-design-icons/MapSearchOutline.vue'
 import IconLoading from '@nextcloud/vue/dist/Components/NcLoadingIcon.js'
+import useMainStore from '../store/mainStore.js'
+
+
+// const mainStore = useMainStore();
 
 export default {
 	name: 'SchemaActionBar',
@@ -123,13 +127,16 @@ export default {
 	methods: {
 		async sendRecipeToCookbook() {
 			try {
+			
+				// init the store - 
+				const mainStore = useMainStore();
 				/* Send the recipe to the cookbook api and
                  * wait for the response status. Set to loading
                  * icon in the meantime.
                  */
 				this.recipeSendLoading = true
 
-				const success = this.$store.dispatch('sendRecipeToCookbook', {
+				const success = mainStore.sendRecipeToCookbook( {
 					recipe: this.$parent.json,
 				})
 
@@ -146,9 +153,11 @@ export default {
 		refreshLiveUri() {
 
 			try {
+				// init the store
+				const mainStore = useMainStore();
 				this.refreshLocationLoading = true
 
-				const result = this.$store.dispatch('callLiveUri', {
+				const result = mainStore.callLiveUri( {
 					liveUri: encodeURIComponent(this.$parent.json.liveUri),
 				})
 
