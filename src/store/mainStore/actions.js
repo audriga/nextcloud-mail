@@ -1758,13 +1758,12 @@ export default function mainStoreActions() {
 				},
 			})
 		},
-		async sendRecipeToCookbook({ commit }, { recipe }) {
-        	return handleHttpAuthErrors(commit, async () => {
-        		const result = await sendRecipe(recipe)
-
-        		return result
-        	})
-       	},
+		async sendRecipeToCookbook(payload) {
+  return handleHttpAuthErrors(async () => {
+    const result = await sendRecipe(payload.recipe)
+    return result
+  })
+},
 
         async callLiveUri({ commit }, { liveUri }) {
         	return handleHttpAuthErrors(commit, async () => {

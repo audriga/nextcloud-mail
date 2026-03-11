@@ -295,6 +295,39 @@ export async function sendMdn(id, data) {
 }
 
 export async function sendRecipe(json) {
+	/*
+	 const possibleUrls = [
+    generateUrl('/apps/cookbook/api/v1/recipe'),
+    generateUrl('/apps/cookbook/api/v1/import'),
+    generateUrl('/apps/cookbook/api/v1/recipes'),
+    generateUrl('/apps/cookbook/api/v1/recipes/import')
+  ]
+
+  for (const url of possibleUrls) {
+    try {
+      console.log(`Trying URL: ${url}`)
+      const response = await axios.post(url, jsonPayload}
+      })
+      console.log(`Success at ${url} with status: ${response.status}`)
+      console.log('Response data:', response.data)
+      if (response.status >= 200 && response.status < 300) {
+        return true
+      }
+    } catch (error) {
+      if (error.response) {
+        console.error(`Error from ${url}: Status ${error.response.status}`, error.response.data)
+      } else if (error.request) {
+        console.error(`No response from ${url}, request sent:`, error.request)
+      } else {
+        console.error(`Setup error on request to ${url}:`, error.message)
+      }
+    }
+  }
+  
+  console.warn('All endpoints failed for import')
+  return false */
+  	
+	
 	const url = generateUrl('/apps/cookbook/api/v1/recipes')
 
 	try {
