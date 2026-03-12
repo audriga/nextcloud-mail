@@ -17,8 +17,8 @@
 				{{ t('mail', 'Warning: The S/MIME signature of this message is  unverified. The sender might be impersonating someone!') }}
 			</p>
 		</div>
-		<div v-if="itineraries.length > 0" class="message-itinerary">
-			<Itinerary :entries="itineraries" :message-id="message.messageId" />
+		<div v-if="Object.entries(schema).length > 0" class="message-schema">
+			<Schema :json="schema" :message-id="message.messageId" />
 		</div>
 		<div v-if="hasCurrentUserPrincipalAndCollections && message.scheduling.length > 0" class="message-imip">
 			<Imip v-for="scheduling in message.scheduling"
@@ -70,7 +70,7 @@ import { NcButton, NcAssistantButton } from '@nextcloud/vue'
 
 import { html, plain } from '../util/text.js'
 import { isPgpgMessage } from '../crypto/pgp.js'
-import Itinerary from './Itinerary.vue'
+import Schema from './Schema.vue'
 import MessageAttachments from './MessageAttachments.vue'
 import PhishingWarning from './PhishingWarning.vue'
 import MessageEncryptedBody from './MessageEncryptedBody.vue'
@@ -85,7 +85,7 @@ import useMainStore from '../store/mainStore.js'
 export default {
 	name: 'Message',
 	components: {
-		Itinerary,
+		Schema,
 		MessageAttachments,
 		MessageEncryptedBody,
 		MessageHTMLBody,
@@ -142,6 +142,9 @@ export default {
 		},
 		hasCurrentUserPrincipalAndCollections() {
 			return this.mainStore.hasCurrentUserPrincipalAndCollections
+		},
+		schema() {
+			return this.message.schema ?? {}
 		},
 	},
 	methods: {

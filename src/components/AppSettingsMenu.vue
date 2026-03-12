@@ -440,6 +440,9 @@ export default {
 		useBottomReplies() {
 			return this.mainStore.getPreference('reply-mode', 'top') === 'bottom'
 		},
+		useSmlLibrary() {
+			return this.$store.getters.getPreference('extraction-library', 'kitinerary') === 'sml'
+		},
 		useExternalAvatars() {
 			return this.mainStore.getPreference('external-avatars', 'true') === 'true'
 		},

@@ -266,6 +266,77 @@
 				</p>
 			</article>
 		</div>
+		<div class="app-description">
+			<h3>
+				{{
+					t(
+						'mail',
+						'Email Markup Extraction'
+					)
+				}}
+			</h3>
+			<article>
+				<p>
+					{{
+						t(
+							'mail',
+							'(Experimental) You can choose which library is used to extract markup data from emails.'
+						)
+					}}
+					<br>
+					<br>
+					{{
+						t(
+							'mail',
+							'Kitinerary will extract Itinerary data from the mail body and attachments.'
+						)
+					}}
+					<br>
+					{{
+						t(
+							'mail',
+							'This will include reservations for flights, trains or events.'
+						)
+					}}
+					<br>
+					<br>
+					{{
+						t(
+							'mail',
+							'HTML2JsonLd will extract Markup data from the mail body.'
+						)
+					}}
+					<br>
+					{{
+						t(
+							'mail',
+							'This will include any type of markup data like json+ld or microdata.'
+						)
+					}}
+				</p>
+				<div style="display: flex">
+					<NcCheckboxRadioSwitch :button-variant="true"
+						:checked.sync="markupLibrary"
+						value="h2ld"
+						name="backend_markup_extraction_radio"
+						type="radio"
+						button-variant-grouped="horizontal"
+						@update:checked="updateMarkupLibrary">
+						HTML2JsonLd
+					</NcCheckboxRadioSwitch>
+					<NcCheckboxRadioSwitch :button-variant="true"
+						:checked.sync="markupLibrary"
+						value="kitinerary"
+						name="backend_markup_extraction_radio"
+						type="radio"
+						button-variant-grouped="horizontal"
+						@update:checked="updateMarkupLibrary">
+						Kitinerary
+					</NcCheckboxRadioSwitch>
+				</div>
+			</article>
+			<AntiSpamSettings />
+		</div>
 	</SettingsSection>
 </template>
 
@@ -292,6 +363,7 @@ import {
 	updateEnabledSmartReply,
 	setImportanceClassificationEnabledByDefault,
 	setLayoutMessageView,
+	updateMarkupLibrary,
 } from '../../service/SettingsService.js'
 
 const googleOauthClientId = loadState('mail', 'google_oauth_client_id', null) ?? undefined
@@ -358,6 +430,7 @@ export default {
 			isClassificationEnabledByDefault: loadState('mail', 'llm_processing', true),
 			isImportanceClassificationEnabledByDefault: loadState('mail', 'importance_classification_default', true),
 			layoutMessageView: loadState('mail', 'layout_message_view'),
+			markupLibrary: loadState('mail', 'markup_library_used_for_extraction'),
 		}
 	},
 	methods: {
@@ -428,6 +501,9 @@ export default {
 		},
 		async setLayoutMessageView(value) {
 			await setLayoutMessageView(value)
+		},
+		async updateMarkupLibrary(choice) {
+			await updateMarkupLibrary(choice)
 		},
 	},
 }

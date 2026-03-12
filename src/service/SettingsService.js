@@ -102,3 +102,12 @@ export const setLayoutMessageView = async (value) => {
 	const resp = await axios.put(url, data)
 	return resp.data
 }
+
+export const updateMarkupLibrary = async (value) => {
+	const url = generateUrl('/apps/mail/api/settings/markuplibrary')
+	const data = {
+		value,
+	}
+	const resp = await axios.put(url, data)
+	return resp.data
+}
