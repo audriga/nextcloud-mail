@@ -88,8 +88,6 @@ import IconLoading from '@nextcloud/vue/dist/Components/NcLoadingIcon.js'
 import useMainStore from '../store/mainStore.js'
 
 
-// const mainStore = useMainStore();
-
 export default {
 	name: 'SchemaActionBar',
 	components: {
