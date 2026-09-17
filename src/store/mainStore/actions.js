@@ -92,7 +92,6 @@ import {
 	syncEnvelopes as syncEnvelopesExternal,
 	unSnoozeMessage,
 	updateEnvelopeTag,
-	deleteTag,
 	sendRecipe,
 	updateSchema,
 } from '../../service/MessageService.js'

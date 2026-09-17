@@ -136,11 +136,6 @@
 import { generateUrl, generateOcsUrl } from '@nextcloud/router'
 import { NcAssistantButton, NcButton, NcPopover } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
-import {
-    NcAssistantButton,
-    NcButton,
-    NcPopover,
-} from '@nextcloud/vue'
 import { NcReferenceWidget } from '@nextcloud/vue/dist/Components/NcRichText.js'
 import { mapStores } from 'pinia'
 import IconInfo from 'vue-material-design-icons/InformationOutline.vue'

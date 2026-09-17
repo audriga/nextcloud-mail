@@ -290,14 +290,13 @@
 					<NcCheckboxRadioSwitch :button-variant="true"
 						:checked.sync="markupLibrary"
 						value="h2ld"
-						name="backend_markup_extraction_radio"
+						name="backend_markup_extraction_radio">
+                    </NcCheckboxRadioSwitch>
 				<p>
 					<NcCheckboxRadioSwitch
 						v-model="layoutMessageView"
 						type="radio"
 						button-variant-grouped="horizontal"
-						@update:checked="updateMarkupLibrary">
-						HTML2JsonLd
 						name="message_view_mode_radio"
 						value="threaded"
 						@update:checked="setLayoutMessageView('threaded')">
@@ -306,19 +305,19 @@
 					<NcCheckboxRadioSwitch :button-variant="true"
 						:checked.sync="markupLibrary"
 						value="kitinerary"
-						name="backend_markup_extraction_radio"
+						name="backend_markup_extraction_radio">
+                    </NcCheckboxRadioSwitch>
 					<NcCheckboxRadioSwitch
 						v-model="layoutMessageView"
 						type="radio"
 						name="message_view_mode_radio"
 						value="singleton"
-						@update:checked="setLayoutMessageView('singleton')">
+						@update:checked="setLayoutMessageView('singleton')"
+						button-variant-grouped="horizontal">
 						{{ t('mail', 'Show only the selected message') }}
-						button-variant-grouped="horizontal"
-						@update:checked="updateMarkupLibrary">
-						Kitinerary
 					</NcCheckboxRadioSwitch>
 				</p>
+                </div>
 			</article>
 		</div>
 	</SettingsSection>
