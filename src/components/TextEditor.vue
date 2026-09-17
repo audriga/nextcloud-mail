@@ -247,6 +247,12 @@ export default {
 							attributes: ['src', 'alt', 'title', 'width', 'height', 'data-cid', 'loading'],
 							styles: true,
 						},
+						{
+							name: 'script',
+							attributes: {
+								type: true,
+							},
+						},
 					],
 				},
 
