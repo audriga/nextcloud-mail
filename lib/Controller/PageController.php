@@ -475,8 +475,7 @@ class PageController extends Controller {
 	public function filteredDraft(string $filter, int $mailboxId, int $draftId): TemplateResponse {
 		return $this->index();
 	}
-
-	/**
+/**
 	 * @NoAdminRequired
 	 * @NoCSRFRequired
 	 *
@@ -484,7 +483,8 @@ class PageController extends Controller {
 	 *
 	 * @return RedirectResponse
 	 */
-	public function compose(string $uri): RedirectResponse {
+	public function compose(string $uri, ?string $json64 = null): RedirectResponse
+	{
 		$parts = parse_url($uri);
 		$params = [];
 		if (is_array($parts) && isset($parts['path'])) {
@@ -497,14 +497,134 @@ class PageController extends Controller {
 				$params[strtolower($pair[0])] = urldecode($pair[1] ?? '');
 			}
 		}
+		if ($json64 !== null && $json64 !== '') {
+			$json = base64_decode($json64, true);
+			$data = $json === false ? null : json_decode($json, true);
+			if (is_array($data)) {
+				// The body coming from the mailto URI must survive untouched; the JSON-LD
+				// payload is only ever appended after it.
+				$params['body'] = ($params['body'] ?? '') . $this->buildComposeBody($data);
+			}
+		}
 
-		array_walk($params,
+		array_walk(
+			$params,
 			static function (&$value, $key) {
 				$value = "$key=" . urlencode($value);
-			});
+			}
+		);
 		$name = '?' . implode('&', $params);
 		$baseUrl = $this->urlGenerator->linkToRoute('mail.page.mailto');
+
+		$this->logger->critical('builtBody: ' . print_r([
+			'builtBody' => $this->buildComposeBody($data),
+		], true));
+
+		$this->logger->critical('Name: ' . print_r([
+			'name' => $name,
+		], true));
+
 		return new RedirectResponse($baseUrl . $name);
+	}
+
+	/**
+	 * Build the JSON-LD addition that gets appended to the original compose body.
+	 *
+	 * The returned markup consists of two parts only:
+	 *  1. the untouched JSON-LD payload inside a <script type="application/ld+json"> tag
+	 *  2. the rendered mustache "card" for that payload
+	 *
+	 * The caller is responsible for keeping the original body in front of this.
+	 */
+	private function buildComposeBody(array $data): string
+	{
+		$json = json_encode($data, JSON_UNESCAPED_SLASHES);
+		if ($json === false) {
+			return '';
+		}
+
+		// Prevent the payload from breaking out of the script element.
+		$scriptPayload = str_replace('</', '<\/', $json);
+
+		try {
+			$card = self::renderLd($data);
+		} catch (Throwable $e) {
+			$this->logger->warning('Could not render JSON-LD card: ' . $e->getMessage(), ['exception' => $e]);
+			$card = '';
+		}
+
+		return '<div><script type="application/ld+json">' . $scriptPayload . '</script></div>' . $card;
+	}
+
+	/**
+	 * Directory holding the mustache templates used by {@see self::renderLd()}.
+	 *
+	 */
+
+	private const LD_TEMPLATE_DIR = __DIR__ . '/../../node_modules/hetc/templates/schema_org/';
+
+	/**
+	 * Maps a schema.org @type to the mustache sub template rendering it.
+	 *
+	 * WARNING: the file names must match the copied templates exactly, there is
+	 * no fallback other than sub_Thing.html.
+	 */
+	private const LD_SUB_TEMPLATES = [
+		'Place' => 'sub_Place.html',
+		'Product' => 'sub_Product.html',
+		'Recipe' => 'sub_Recipe.html',
+		'BusinessEvent' => 'sub_BusinessEvent.html',
+		'NewsArticle' => 'sub_NewsArticle.html',
+		'MusicComposition' => 'sub_MusicComposition.html',
+		'MusicGroup' => 'sub_MusicGroup.html',
+		'MusicAlbum' => 'sub_MusicAlbum.html',
+		'MusicRecording' => 'sub_MusicRecording.html',
+		'EventReservation' => 'sub_EventReservation.html',
+		'ConfirmAction' => 'sub_ConfirmAction.html',
+	];
+
+	/**
+	 * Render a JSON-LD payload into an HTML "card".
+	 *
+	 * NOTE: the super template is a bare <tr>, so the result is wrapped into a
+	 * <table> here to keep it a self contained HTML fragment.
+	 *
+	 * @param array|object $jsonld
+	 */
+	public static function renderLd($jsonld): string
+	{
+		if (is_object($jsonld)) {
+			$jsonld = (array)$jsonld;
+		}
+
+		$superThing = self::readLdTemplate('super_Thing_default_card.html');
+		$subTemplateFile = self::LD_SUB_TEMPLATES[$jsonld['@type'] ?? ''] ?? 'sub_Thing.html';
+		$subtemplate = self::readLdTemplate($subTemplateFile);
+
+		$mustache = new \Mustache_Engine([
+			'partials' => [
+				'subTemplateContent' => $subtemplate,
+			],
+		]);
+
+		return '<table role="presentation" cellspacing="0" cellpadding="0" border="0">'
+			. $mustache->render($superThing, $jsonld)
+			. '</table>';
+	}
+
+	/**
+	 * WARNING: reads from the manually copied template directory, see
+	 * {@see self::LD_TEMPLATE_DIR}. A missing file means the copy went stale.
+	 */
+	private static function readLdTemplate(string $fileName): string
+	{
+		$path = self::LD_TEMPLATE_DIR . $fileName;
+		$contents = is_file($path) ? file_get_contents($path) : false;
+		if ($contents === false) {
+			throw new \RuntimeException("Missing JSON-LD template $fileName. Did you forget to copy it from node_modules/hetc/templates/schema_org/?");
+		}
+
+		return $contents;
 	}
 	/**
 	 * @NoAdminRequired

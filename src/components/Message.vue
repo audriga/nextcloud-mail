@@ -84,12 +84,64 @@
 				{{ replyButtonLabel }}
 			</NcButton>
 		</div>
+		<NcPopover
+            ref="referenceWidgetPopover"
+            :shown="referenceWidgetVisible"
+            :no-focus-trap="true"
+            :triggers="[]"
+            placement="bottom-start"
+            @update:shown="onReferenceWidgetShownChange">
+            <template #trigger>
+                <span
+                    class="reference-widget-anchor"
+                    :style="referenceWidgetAnchorStyle" />
+            </template>
+
+            <div
+                class="reference-widget-popover__inner"
+                @pointerenter="onReferenceWidgetPointerEnter"
+                @pointerleave="onReferenceWidgetPointerLeave">
+                <button
+                    type="button"
+                    class="reference-widget-popover__close"
+                    :aria-label="t('mail', 'Close link preview')"
+                    :title="t('mail', 'Close link preview')"
+                    @click.stop.prevent="closeReferenceWidget(true)">
+                    ×
+                </button>
+
+                <div class="reference-widget-popover__content">
+                    <NcReferenceWidget
+                        v-if="reference"
+                        :reference="reference" />
+
+                    <p
+                        v-else-if="referenceResolving"
+                        class="reference-widget-status">
+                        {{ t('mail', 'Loading link preview…') }}
+                    </p>
+
+                    <p
+                        v-else
+                        class="reference-widget-status">
+                        {{ t('mail', 'No preview is available for this link.') }}
+                    </p>
+                </div>
+            </div>
+        </NcPopover>
 	</div>
 </template>
 
 <script>
-import { generateUrl } from '@nextcloud/router'
+import { generateUrl, generateOcsUrl } from '@nextcloud/router'
 import { NcAssistantButton, NcButton, NcPopover } from '@nextcloud/vue'
+import axios from '@nextcloud/axios'
+import {
+    NcAssistantButton,
+    NcButton,
+    NcPopover,
+} from '@nextcloud/vue'
+import { NcReferenceWidget } from '@nextcloud/vue/dist/Components/NcRichText.js'
 import { mapStores } from 'pinia'
 import IconInfo from 'vue-material-design-icons/InformationOutline.vue'
 import LockOffIcon from 'vue-material-design-icons/LockOffOutline.vue'
@@ -122,6 +174,8 @@ export default {
 		NcButton,
 		NcAssistantButton,
 		NcPopover,
+        NcReferenceWidget,
+		NcPopover,
 	},
 
 	props: {
@@ -152,6 +206,22 @@ export default {
 			type: String,
 		},
 	},
+	data() {
+        return {
+            aiInfo: t('mail', 'Suggested replies are using AI'),
+
+            referenceWidgetVisible: false,
+            referenceWidgetHref: '',
+            reference: null,
+            referenceResolving: false,
+
+            referenceWidgetAnchorRect: null,
+            referenceRequestId: 0,
+            referenceWidgetMouseInside: false,
+            pointerInsideSourceLink: false,
+            hideReferenceWidgetTimeout: null,
+        }
+    },
 
 	data() {
 		return {
@@ -189,12 +259,159 @@ export default {
 		schema() {
 			return this.message.schema ?? {}
 		},
+		        // Invisible anchor NcPopover attaches to; floating-vue handles placement/flipping/repositioning.
+        referenceWidgetAnchorStyle() {
+            const rect = this.referenceWidgetAnchorRect
+
+            if (!rect) {
+                return { left: '0px', top: '0px', width: '0px', height: '0px' }
+            }
+
+            return {
+                left: `${rect.left}px`,
+                top: `${rect.top}px`,
+                width: `${Math.max(0, rect.right - rect.left)}px`,
+                height: `${Math.max(0, rect.bottom - rect.top)}px`,
+            }
+        },
 	},
+	beforeUnmount() {
+        this.clearHideReferenceWidgetTimeout()
+        this.closeReferenceWidget(true)
+    },
 
 	methods: {
 		onReply(replyBody) {
 			this.$emit('reply', replyBody)
 		},
+	
+
+        async onLinkHover(linkData) {
+            const href = typeof linkData === 'string'
+                ? linkData
+                : linkData?.href
+
+            const rect = typeof linkData === 'string'
+                ? null
+                : linkData?.rect
+
+            if (!href) {
+                return
+            }
+
+            this.clearHideReferenceWidgetTimeout()
+
+            this.referenceWidgetAnchorRect = rect
+            this.referenceWidgetHref = href
+            this.referenceWidgetVisible = true
+            this.referenceResolving = true
+            this.reference = null
+            this.pointerInsideSourceLink = true
+
+            this.$nextTick(() => {
+                this.$refs.referenceWidgetPopover?.$refs?.popover?.onResize?.()
+            })
+
+            const requestId = ++this.referenceRequestId
+
+            try {
+                const response = await axios.get(
+                    generateOcsUrl('references/resolve', 2),
+                    {
+                        params: {
+                            reference: href,
+                        },
+                    },
+                )
+
+                if (requestId !== this.referenceRequestId) {
+                    return
+                }
+
+                this.reference
+                    = response.data?.ocs?.data?.references?.[href] ?? null
+            } catch (error) {
+                if (requestId !== this.referenceRequestId) {
+                    return
+                }
+
+                console.error(
+                    '[Message] Failed to resolve link reference',
+                    error,
+                )
+
+                this.reference = null
+            } finally {
+                if (requestId === this.referenceRequestId) {
+                    this.referenceResolving = false
+                }
+            }
+        },
+
+        onLinkLeave() {
+            this.pointerInsideSourceLink = false
+            this.scheduleHideReferenceWidget()
+        },
+
+        onReferenceWidgetPointerEnter() {
+            this.referenceWidgetMouseInside = true
+            this.clearHideReferenceWidgetTimeout()
+        },
+
+        onReferenceWidgetPointerLeave() {
+            this.referenceWidgetMouseInside = false
+            this.scheduleHideReferenceWidget()
+        },
+
+        onReferenceWidgetShownChange(shown) {
+            if (!shown) {
+                this.closeReferenceWidget(true)
+            }
+        },
+
+        scheduleHideReferenceWidget() {
+            this.clearHideReferenceWidgetTimeout()
+
+            this.hideReferenceWidgetTimeout = window.setTimeout(() => {
+                if (
+                    !this.referenceWidgetMouseInside
+                    && !this.pointerInsideSourceLink
+                ) {
+                    this.closeReferenceWidget()
+                }
+            }, 500)
+        },
+
+        clearHideReferenceWidgetTimeout() {
+            if (this.hideReferenceWidgetTimeout !== null) {
+                window.clearTimeout(this.hideReferenceWidgetTimeout)
+                this.hideReferenceWidgetTimeout = null
+            }
+        },
+
+        closeReferenceWidget(force = false) {
+            if (
+                !force
+                && (
+                    this.referenceWidgetMouseInside
+                    || this.pointerInsideSourceLink
+                )
+            ) {
+                return
+            }
+
+            this.clearHideReferenceWidgetTimeout()
+
+            this.referenceRequestId++
+            this.referenceWidgetVisible = false
+            this.referenceWidgetHref = ''
+            this.reference = null
+            this.referenceResolving = false
+            this.referenceWidgetMouseInside = false
+            this.pointerInsideSourceLink = false
+            this.referenceWidgetAnchorRect = null
+        },
+
 	},
 }
 </script>
@@ -234,6 +451,58 @@ export default {
 		// Fix alignment with message
 		margin-top: -5px;
 	}
+}
+
+.reference-widget-anchor {
+    position: fixed;
+    /* Zero-size, invisible: only used by NcPopover/floating-vue to compute placement. */
+    pointer-events: none;
+}
+
+.reference-widget-popover__inner {
+    position: relative;
+    box-sizing: border-box;
+    width: 320px;
+    max-width: calc(100vw - 16px);
+    max-height: min(420px, calc(100vh - 16px));
+    overflow: hidden;
+    padding: 8px;
+    background: var(--color-main-background);
+    border-radius: var(--border-radius-large);
+}
+
+.reference-widget-popover__content {
+    max-height: min(360px, calc(100vh - 90px));
+    overflow: auto;
+    pointer-events: auto;
+}
+
+.reference-widget-popover__close {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    z-index: 2;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--color-text-maxcontrast);
+    font-size: 24px;
+    line-height: 24px;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.reference-widget-popover__close:hover {
+    background: var(--color-background-hover);
+    color: var(--color-main-text);
+}
+
+.reference-widget-status {
+    margin: 8px;
+    color: var(--color-text-maxcontrast);
 }
 
 .reply-buttons {

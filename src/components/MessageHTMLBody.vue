@@ -100,6 +100,7 @@ export default {
 			isSenderTrusted: this.message.isSenderTrusted,
 			needsTranslation: false,
 			enabledFreePrompt: loadState('mail', 'llm_freeprompt_available', false),
+			linkHoverCleanup: null,
 		}
 	},
 
@@ -131,6 +132,7 @@ export default {
 
 	beforeUnmount() {
 		scout.off('beforeprint', this.onBeforePrint)
+		this.removeLinkHoverHandlers()
 		this.$refs.iframe.iFrameResizer.close()
 	},
 
@@ -139,6 +141,61 @@ export default {
 			const iframe = this.$refs.iframe
 			return iframe.contentDocument || iframe.contentWindow.document
 		},
+		installLinkHoverHandlers() {
+            const iframeDoc = this.getIframeDoc()
+
+            if (!iframeDoc?.body) {
+                return
+            }
+
+            this.removeLinkHoverHandlers()
+
+            const links = Array.from(iframeDoc.querySelectorAll('a[href]'))
+
+            const onMouseEnter = (event) => {
+                const link = event.currentTarget
+                const linkRect = link.getBoundingClientRect()
+                const iframeRect = this.$refs.iframe.getBoundingClientRect()
+
+                this.$emit('link-hover', {
+                    href: link.href,
+                    rect: {
+                        left: iframeRect.left + linkRect.left,
+                        top: iframeRect.top + linkRect.top,
+                        right: iframeRect.left + linkRect.right,
+                        bottom: iframeRect.top + linkRect.bottom,
+                    },
+                })
+            }
+
+            const onMouseLeave = () => {
+                this.$emit('link-leave')
+            }
+
+            links.forEach((link) => {
+                link.addEventListener('mouseenter', onMouseEnter)
+                link.addEventListener('mouseleave', onMouseLeave)
+                link.addEventListener('focus', onMouseEnter)
+                link.addEventListener('blur', onMouseLeave)
+            })
+
+            this.linkHoverCleanup = () => {
+                links.forEach((link) => {
+                    link.removeEventListener('mouseenter', onMouseEnter)
+                    link.removeEventListener('mouseleave', onMouseLeave)
+                    link.removeEventListener('focus', onMouseEnter)
+                    link.removeEventListener('blur', onMouseLeave)
+                })
+
+                this.linkHoverCleanup = null
+            }
+        },
+
+        removeLinkHoverHandlers() {
+            if (this.linkHoverCleanup) {
+                this.linkHoverCleanup()
+            }
+        },
 
 		onMessageFrameLoad() {
 			const iframeDoc = this.getIframeDoc()
@@ -146,7 +203,8 @@ export default {
 				= iframeDoc.querySelectorAll('[data-original-src]').length > 0
 					|| iframeDoc.querySelectorAll('[data-original-style]').length > 0
 					|| iframeDoc.querySelectorAll('style[data-original-content]').length > 0
-
+				
+			this.installLinkHoverHandlers()
 			this.$emit('load')
 			if (this.isSenderTrusted) {
 				this.displayIframe()

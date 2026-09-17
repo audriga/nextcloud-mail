@@ -59,6 +59,7 @@ import QuotePlugin from '../ckeditor/quote/QuotePlugin.js'
 import SignaturePlugin from '../ckeditor/signature/SignaturePlugin.js'
 import PickerPlugin from '../ckeditor/smartpicker/PickerPlugin.js'
 import logger from '../logger.js'
+import StructuredEmailPlugin from '../ckeditor/structuredEmail/StructuredEmailPlugin.js'
 import { autoCompleteByName } from '../service/ContactIntegrationService.js'
 import { Text, toPlain } from '../util/text.js'
 
@@ -132,6 +133,7 @@ export default {
 			Link,
 			FindAndReplace,
 			GeneralHtmlSupport,
+			StructuredEmailPlugin,
 		]
 		const toolbar = ['undo', 'redo']
 

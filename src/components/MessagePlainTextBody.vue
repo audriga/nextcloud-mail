@@ -82,15 +82,78 @@ export default {
 	},
 
 	async mounted() {
+		this.installLinkHoverHandlers()
+
 		if (this.enabledFreePrompt && this.message) {
 			this.needsTranslation = await needsTranslation(this.message.databaseId)
 		}
 	},
+	    updated() {
+        this.installLinkHoverHandlers()
+    },
+
+    beforeUnmount() {
+        this.removeLinkHoverHandlers()
+    },
 
 	methods: {
 		nl2br(str) {
 			return str.replace(/(\r\n|\n\r|\n|\r)/g, '<br />')
 		},
+		installLinkHoverHandlers() {
+            const container = this.$refs.messageContainer
+
+            if (!container || container.dataset.linkHoverHandlersInstalled === 'true') {
+                return
+            }
+
+            container.dataset.linkHoverHandlersInstalled = 'true'
+            container.addEventListener('mouseover', this.onMessageMouseOver)
+            container.addEventListener('mouseout', this.onMessageMouseOut)
+        },
+
+        removeLinkHoverHandlers() {
+            const container = this.$refs.messageContainer
+
+            if (!container) {
+                return
+            }
+
+            container.removeEventListener('mouseover', this.onMessageMouseOver)
+            container.removeEventListener('mouseout', this.onMessageMouseOut)
+            delete container.dataset.linkHoverHandlersInstalled
+        },
+
+        onMessageMouseOver(event) {
+            const link = event.target.closest?.('a[href]')
+
+            if (!link || !this.$refs.messageContainer.contains(link)) {
+                return
+            }
+
+            if (event.relatedTarget && link.contains(event.relatedTarget)) {
+                return
+            }
+
+            this.$emit('link-hover', {
+				href: link.href,
+				rect: link.getBoundingClientRect(),
+			})
+        },
+
+        onMessageMouseOut(event) {
+            const link = event.target.closest?.('a[href]')
+
+            if (!link) {
+                return
+            }
+
+            if (event.relatedTarget && link.contains(event.relatedTarget)) {
+                return
+            }
+
+            this.$emit('link-leave')
+        },
 	},
 }
 </script>

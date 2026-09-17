@@ -34,6 +34,7 @@
 		"gravatarphp/gravatar": "dev-master#6b9f6a45477ce48285738d9d0c3f0dbf97abe263",
 		"hamza221/html2text": "^1.0",
 		"jeremykendall/php-domain-parser": "^6.4.0",
+		"mustache/mustache": "^2.14",
 		"nextcloud/horde-managesieve": "^1.0.1",
 		"nextcloud/horde-smtp": "^1.0.3",
 		"nextcloud/kitinerary": "^1.0",
