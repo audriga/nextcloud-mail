@@ -49,6 +49,7 @@ use OCP\Files\IMimeTypeDetector;
 use OCP\Files\NotPermittedException;
 use OCP\ICache;
 use OCP\ICacheFactory;
+use OCP\IConfig;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IURLGenerator;
@@ -60,6 +61,7 @@ use function array_map;
 class MessagesController extends Controller {
 	private AccountService $accountService;
 	private IMailManager $mailManager;
+	private IConfig $config;
 	private IMailSearch $mailSearch;
 	private ItineraryService $itineraryService;
 	private SchemaService $schemaService;
@@ -89,6 +91,7 @@ class MessagesController extends Controller {
 		ItineraryService $itineraryService,
 		SchemaService $schemaService,
 		?string $userId,
+		IConfig $config,
 		$userFolder,
 		LoggerInterface $logger,
 		IL10N $l10n,
@@ -115,6 +118,7 @@ class MessagesController extends Controller {
 		$this->currentUserId = $userId;
 		$this->userFolder = $userFolder;
 		$this->logger = $logger;
+		$this->config = $config;
 		$this->l10n = $l10n;
 		$this->mimeTypeDetector = $mimeTypeDetector;
 		$this->urlGenerator = $urlGenerator;
