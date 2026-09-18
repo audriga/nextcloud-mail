@@ -9,7 +9,7 @@
 			:is-html="false"
 			@translate="$emit('translate')" />
 		<MdnRequest :message="message" />
-		<div id="message-container" v-html="nl2br(enhancedBody)" />
+		<div id="message-container" ref="messageContainer" v-html="nl2br(enhancedBody)" />
 		<details v-if="signature" class="mail-signature">
 			<summary v-html="nl2br(signatureSummaryAndBody.summary)" />
 			<span v-html="nl2br(signatureSummaryAndBody.body)" />
@@ -21,6 +21,7 @@
 import { loadState } from '@nextcloud/initial-state'
 import MdnRequest from './MdnRequest.vue'
 import NeedsTranslationInfo from './NeedsTranslationInfo.vue'
+import logger from '../logger.js'
 import { needsTranslation } from '../service/AiIntergrationsService.js'
 
 const regFirstParagraph = /(.+\n\r?)+(\n\r?)+/
@@ -107,6 +108,8 @@ export default {
                 return
             }
 
+            logger.debug('[MessagePlainTextBody] installing link hover handlers', { linkCount: container.querySelectorAll('a[href]').length })
+
             container.dataset.linkHoverHandlersInstalled = 'true'
             container.addEventListener('mouseover', this.onMessageMouseOver)
             container.addEventListener('mouseout', this.onMessageMouseOut)
@@ -135,6 +138,8 @@ export default {
                 return
             }
 
+            logger.debug('[MessagePlainTextBody] onMessageMouseOver', { href: link.href })
+
             this.$emit('link-hover', {
 				href: link.href,
 				rect: link.getBoundingClientRect(),
@@ -151,6 +156,8 @@ export default {
             if (event.relatedTarget && link.contains(event.relatedTarget)) {
                 return
             }
+
+            logger.debug('[MessagePlainTextBody] onMessageMouseOut', { href: link.href })
 
             this.$emit('link-leave')
         },

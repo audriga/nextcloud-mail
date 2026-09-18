@@ -152,10 +152,14 @@ export default {
 
             const links = Array.from(iframeDoc.querySelectorAll('a[href]'))
 
+            logger.debug('[MessageHTMLBody] installing link hover handlers', { linkCount: links.length })
+
             const onMouseEnter = (event) => {
                 const link = event.currentTarget
                 const linkRect = link.getBoundingClientRect()
                 const iframeRect = this.$refs.iframe.getBoundingClientRect()
+
+                logger.debug('[MessageHTMLBody] onMouseEnter', { href: link.href })
 
                 this.$emit('link-hover', {
                     href: link.href,
@@ -169,6 +173,7 @@ export default {
             }
 
             const onMouseLeave = () => {
+                logger.debug('[MessageHTMLBody] onMouseLeave')
                 this.$emit('link-leave')
             }
 

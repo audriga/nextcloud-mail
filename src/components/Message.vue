@@ -34,7 +34,9 @@
 			:message="message"
 			:full-height="fullHeight"
 			@load="$emit('load', $event)"
-			@translate="$emit('translate')" />
+			@translate="$emit('translate')"
+			@link-hover="onLinkHover"
+			@link-leave="onLinkLeave" />
 		<MessageEncryptedBody
 			v-else-if="isEncrypted || isPgpMimeEncrypted"
 			:body="message.body"
@@ -45,7 +47,9 @@
 			:body="message.body"
 			:signature="message.signature"
 			:message="message"
-			@translate="$emit('translate')" />
+			@translate="$emit('translate')"
+			@link-hover="onLinkHover"
+			@link-leave="onLinkLeave" />
 		<MessageAttachments :attachments="message.attachments" :envelope="envelope" />
 		<div id="reply-composer" />
 		<div class="reply-buttons">
@@ -150,6 +154,7 @@ import MessageHTMLBody from './MessageHTMLBody.vue'
 import MessagePlainTextBody from './MessagePlainTextBody.vue'
 import PhishingWarning from './PhishingWarning.vue'
 import { isPgpgMessage } from '../crypto/pgp.js'
+import logger from '../logger.js'
 import useMainStore from '../store/mainStore.js'
 import { html, plain } from '../util/text.js'
 
@@ -169,8 +174,7 @@ export default {
 		NcButton,
 		NcAssistantButton,
 		NcPopover,
-        NcReferenceWidget,
-		NcPopover,
+		NcReferenceWidget,
 	},
 
 	props: {
@@ -202,25 +206,19 @@ export default {
 		},
 	},
 	data() {
-        return {
-            aiInfo: t('mail', 'Suggested replies are using AI'),
-
-            referenceWidgetVisible: false,
-            referenceWidgetHref: '',
-            reference: null,
-            referenceResolving: false,
-
-            referenceWidgetAnchorRect: null,
-            referenceRequestId: 0,
-            referenceWidgetMouseInside: false,
-            pointerInsideSourceLink: false,
-            hideReferenceWidgetTimeout: null,
-        }
-    },
-
-	data() {
 		return {
 			aiInfo: t('mail', 'Suggested replies are using AI'),
+
+			referenceWidgetVisible: false,
+			referenceWidgetHref: '',
+			reference: null,
+			referenceResolving: false,
+
+			referenceWidgetAnchorRect: null,
+			referenceRequestId: 0,
+			referenceWidgetMouseInside: false,
+			pointerInsideSourceLink: false,
+			hideReferenceWidgetTimeout: null,
 		}
 	},
 
@@ -294,6 +292,8 @@ export default {
                 return
             }
 
+            logger.debug('[Message] onLinkHover', { href, rect })
+
             this.clearHideReferenceWidgetTimeout()
 
             this.referenceWidgetAnchorRect = rect
@@ -344,6 +344,7 @@ export default {
         },
 
         onLinkLeave() {
+            logger.debug('[Message] onLinkLeave')
             this.pointerInsideSourceLink = false
             this.scheduleHideReferenceWidget()
         },
