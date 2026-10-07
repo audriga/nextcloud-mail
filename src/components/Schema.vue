@@ -22,18 +22,21 @@
 <template>
 	<div class="schema">
 		<div v-html="html" />
+		<type-renderer ref="rendererEl" :data="jsonldData"
+        	:current-user="currentUser"
+        />
 		<div class="schema-action-bar">
 			<SchemaActionBar @update-from-live-uri="updateData" />
-		</div>
-		<div class="full-schema">
-			{{ json }}
 		</div>
 	</div>
 </template>
 
 <script>
-import Jsonld2html from 'jsonld2html-cards'
+import 'json-ld-web-components/type-renderer'
+import { loadState } from '@nextcloud/initial-state'
+import useMainStore from '../store/mainStore.js'
 import SchemaActionBar from './SchemaActionBar.vue'
+
 
 export default {
 	name: 'Schema',
@@ -59,6 +62,33 @@ export default {
 			isRequiredAppInstalled: null,
 		}
 	},
+	computed: {
+		jsonldData() {
+			console.log(JSON.stringify(this.schema))
+			return JSON.stringify(this.schema)
+		},
+		currentUser() {
+            // 1. Core primary email address
+            const userEmailFromCore = loadState('mail', 'prefill_email', '')
+
+            // 2. Mail app accounts
+            const store = useMainStore()
+            const realAccounts = (store.getAccounts || []).filter((account) => !account.isUnified)
+
+            // First registered account email
+            const primaryMailAccountEmail = realAccounts[0]?.emailAddress ?? null
+
+            // All registered mail account emails
+            const allMailAccounts = realAccounts.map((account) => account.emailAddress)
+
+            // console.log('userEmailFromCore:', userEmailFromCore)
+            // console.log('primaryMailAccountEmail:', primaryMailAccountEmail)
+            // console.log('allMailAccounts:', allMailAccounts)
+
+            // Return whichever you need (or an object with both)
+            return primaryMailAccountEmail || userEmailFromCore
+        },
+	},
 	created() {
 		// Decompose the schema object to see whether the app required
 		// for button rendering is installed on the instance.
@@ -66,22 +96,8 @@ export default {
 
 		this.schema = { ...otherProperties }
 		this.isRequiredAppInstalled = { isRequiredAppInstalled }
-
-		this.getRenderedSchema()
 	},
 	methods: {
-		getRenderedSchema() {
-
-			if (Array.isArray(this.json) && this.json.length === 1) {
-				this.html = Jsonld2html.render(this.json[0], false)
-			}
-
-			const rendered = Jsonld2html.render(this.json, false)
-
-			this.html = rendered
-
-			return rendered
-		},
 		async updateData(updatedValues) {
 			for (const key in updatedValues) {
 				if (Object.prototype.hasOwnProperty.call(this.schema, key)) {
@@ -89,7 +105,6 @@ export default {
 				}
 			}
 
-			this.getRenderedSchema()
 		},
 		appIsInstalled(appName) {
 			return Object.prototype.hasOwnProperty.call(this.installedApps, appName)
@@ -125,256 +140,4 @@ export default {
 
 }
 
-.schema >>> .ld-card {
-
-	max-width: 600px;
-
-	/* round corners*/
-	border: 2px solid var(--color-border);
-	border-radius: 6px;
-
-	/* padding in the card*/
-	padding: 20px;
-
-	background: var(--color-main-background);
-
-}
-
-.schema >>> .ld-card__row {
-
-    /*Layout Settings*/
-
-    /* declaring the card class to a flex-contatiner */
-    display: flex;
-
-    /* setting the alignment of the childs to vertical row layout*/
-    flex-direction: row;
-
-    /* the items in the container are able to wrap, works like a line break */
-    flex-wrap: nowrap;
-
-    /* align the items horizontally in the cointainer to left side (flex-start) */
-    justify-content: flex-start;
-
-    /* align the items vertically in the center */
-    align-items: flex-start;
-
-    /* positioning in a html document*/
-    position: relative;
-
-    /* maximal absoulute card width */
-    max-width: 600px;
-
-    /* maximal absolute card height */
-    max-height: 150px;
-
-	gap: 20px;
-
-}
-
-.schema >>> .ld-card__row .text_column {
-
-	display: flex;
-
-	/* setting the alignment of the childs to vertical row layout*/
-	flex-direction: column;
-
-	/* the items in the container are able to wrap, works like a line break */
-	flex-wrap: nowrap;
-
-	/* align the items horizontally in the cointainer to left side (flex-start) */
-	justify-content: flex-start;
-
-	/* align the items vertically in the center */
-	align-items: flex-start;
-
-	/* minimum height , same as the picture box*/
-	min-height: 100px;
-	max-height: 150px;
-
-	flex-basis: 90%;
-
-	/* this property is needed to make the truncating working for the child elements*/
-	min-width: 0;
-
-	margin-left: 20px
-
-}
-
-.schema >>> .ld-card__row .title {
-
-	margin: 4px 0px;
-
-	font-size: 20px;
-	font-weight: bold;
-	min-height: 20%;
-
-	color: var(--color-main-text);
-
-	/* settings for truncating single line text */
-    text-overflow: ellipsis;
-    overflow-x: auto;
-
-}
-
-.schema >>> .ld-card__row .content {
-
-	margin-top: 4px;
-	margin-bottom: 4px;
-
-	font-size: 16px;
-
-	color: var(--color-main-text);
-
-	/* this is for truncating multiline texts*/
-	display: -webkit-box;
-	-webkit-box-orient: vertical;
-	-webkit-line-clamp: 4;
-	overflow: auto;
-
-}
-
-.schema >>> .ld-card__row .image_column {
-
-	/* declaring the card class to a flex-contatiner */
-	display: flex;
-
-	/* align the items vertically in the center */
-	align-items: center;
-
-	/* align the items horizontally in the cointainer to center */
-	justify-content: center;
-
-	min-height: 100px;
-	min-width: 100px;
-	max-width: 100px;
-
-	/* in case of bigger elements in the box, cut off the sides*/
-	overflow: hidden;
-
-}
-
-.schema >>> .ld-card__row img {
-
-	display: block;
-	max-width: 100px;
-	max-height: 100px;
-	min-width: 100px;
-
-}
-
-.schema >>> br {
-	display: none;
-}
-
-.schema >>> ld-card__header {
-	display: none;
-}
-
-/* Flight Reservation Styling */
-.schema >>> .tab {
-
-display: flex;
-
-flex-direction: row;
-
-justify-content: flex-start;
-
-overflow: hidden;
-
-}
-
-.schmea >>> .tab button {
-
-	border-radius: 20px 20px 0px 0px;
-
-}
-
-.schema >>> .tab button:hover {
-    background-color: #ddd;
-}
-
-.schema >>> .tab button.active {
-    background-color: var(--color-main-background);
-}
-
-.schema >>> .ld-card .ld-card__row .smlCardFlightReservationTextColumn .tabcontent {
-    display: none;
-    padding: 3px 2px;
-    flex-direction: row;
-
-    /* the items in the container are able to wrap, works like a line break */
-    flex-wrap: nowrap;
-
-    /* align the items horizontally in the cointainer to left side (flex-start) */
-    justify-content: space-evenly;
-
-    /* align the items vertically in the center */
-    align-items: center;
-
-    /* initial/standard size of the text column (shrinkage still possible)*/
-    flex-basis: 100%;
-
-    /* minimum height , same as the picture box*/
-    min-height: 150px;
-    max-height: 150px;
-
-    max-width: inherit;
-
-}
-
-.schema >>> .ld-card__row .smlCardFlightReservationTextColumn {
-
-display: flex;
-
-/* setting the alignment of the childs to vertical row layout*/
-flex-direction: row;
-
-/* the items in the container are able to wrap, works like a line break */
-flex-wrap: nowrap;
-
-/* align the items horizontally in the cointainer to left side (flex-start) */
-justify-content: space-evenly;
-
-/* align the items vertically in the center */
-align-items: center;
-
-/* initial/standard size of the text column (shrinkage still possible)*/
-flex-basis: 100%;
-
-/* minimum height , same as the picture box*/
-min-height: 150px;
-max-height: 150px;
-
-/* this property is needed to make the truncating working for the child elements*/
-min-width: 0;
-
-}
-
-.schema >>> .smlCardFlightReservationTextColumn .flightReservationFirstColumn{
-    max-width: 180px;
-    overflow-wrap: break-word;
-    padding: 10px;
-    text-align: right;
-}
-
-.schema >>> .smlCardFlightReservationTextColumn .flightReservationMidColumn{
-
-display: flex;
-flex-direction: column;
-
-overflow-wrap: break-word;
-padding: 10px;
-/* align the items horizontally in the cointainer to left side (flex-start) */
-justify-content: center;
-
-/* align the items vertically in the center */
-align-items: center;
-}
-
-.schema >>> .smlCardFlightReservationTextColumn .flightReservationLastColumn{
-    max-width: 180px;
-    overflow-wrap: break-word;
-    padding: 10px;
-}
 </style>
