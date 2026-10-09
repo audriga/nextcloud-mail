@@ -28,6 +28,11 @@ export default new Router({
 			component: Home,
 		},
 		{
+			path: '/compose',
+			name: 'compose',
+			component: Home,
+		},
+		{
 			path: '/box/:filter?/:mailboxId',
 			name: 'mailbox',
 			component: Home,

@@ -9,6 +9,7 @@
 
 <script>
 import { showError } from '@nextcloud/dialogs'
+import { loadState } from '@nextcloud/initial-state'
 import { translate as t } from '@nextcloud/l10n'
 import { mapState, mapStores } from 'pinia'
 import MailboxLockedError from './errors/MailboxLockedError.js'
@@ -16,6 +17,9 @@ import { matchError } from './errors/match.js'
 import initAfterAppCreation from './init.js'
 import logger from './logger.js'
 import useMainStore from './store/mainStore.js'
+import { createJsonLdComposeInitializer } from './util/initializeJsonLdCompose.js'
+
+const initializeJsonLdCompose = createJsonLdComposeInitializer()
 
 export default {
 	name: 'App',
@@ -44,6 +48,14 @@ export default {
 
 	async mounted() {
 		initAfterAppCreation()
+		await new Promise((resolve, reject) => {
+			this.$router.onReady(resolve, reject)
+		})
+		await initializeJsonLdCompose({
+			composeData: loadState('mail', 'compose-data', null),
+			mainStore: this.mainStore,
+			router: this.$router,
+		})
 		// Redirect to setup page if no accounts are configured
 		if (!this.hasMailAccounts) {
 			this.$router.replace({

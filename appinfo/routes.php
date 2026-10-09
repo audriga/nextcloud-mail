@@ -76,6 +76,11 @@ return [
 			'verb' => 'GET'
 		],
 		[
+			'name' => 'page#composeJsonLd',
+			'url' => '/compose',
+			'verb' => 'POST'
+		],
+		[
 			'name' => 'accounts#draft',
 			'url' => '/api/accounts/{id}/draft',
 			'verb' => 'POST'

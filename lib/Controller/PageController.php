@@ -16,6 +16,9 @@ use OCA\Mail\Contracts\IMailManager;
 use OCA\Mail\Contracts\IUserPreferences;
 use OCA\Mail\Db\SmimeCertificate;
 use OCA\Mail\Db\TagMapper;
+use OCA\Mail\Exception\ClientException;
+use OCA\Mail\Http\JsonResponse;
+use OCA\Mail\Http\TrapError;
 use OCA\Mail\Service\AccountService;
 use OCA\Mail\Service\AiIntegrations\AiIntegrationsService;
 use OCA\Mail\Service\AliasesService;
@@ -28,9 +31,11 @@ use OCA\Mail\Service\SmimeService;
 use OCA\Viewer\Event\LoadViewer;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Controller;
+use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\OpenAPI;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\AppFramework\Http\RedirectResponse;
+use OCP\AppFramework\Http\Response;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Services\IInitialState;
 use OCP\Authentication\Exceptions\CredentialsUnavailableException;
@@ -51,6 +56,7 @@ use Throwable;
 use function class_exists;
 use function http_build_query;
 use function json_decode;
+use function json_last_error;
 
 #[OpenAPI(scope: OpenAPI::SCOPE_IGNORE)]
 class PageController extends Controller {
@@ -475,7 +481,7 @@ class PageController extends Controller {
 	public function filteredDraft(string $filter, int $mailboxId, int $draftId): TemplateResponse {
 		return $this->index();
 	}
-/**
+	/**
 	 * @NoAdminRequired
 	 * @NoCSRFRequired
 	 *
@@ -483,8 +489,7 @@ class PageController extends Controller {
 	 *
 	 * @return RedirectResponse
 	 */
-	public function compose(string $uri, ?string $json64 = null): RedirectResponse
-	{
+	public function compose(string $uri): RedirectResponse {
 		$parts = parse_url($uri);
 		$params = [];
 		if (is_array($parts) && isset($parts['path'])) {
@@ -497,55 +502,93 @@ class PageController extends Controller {
 				$params[strtolower($pair[0])] = urldecode($pair[1] ?? '');
 			}
 		}
-		if ($json64 !== null && $json64 !== '') {
-			$json = base64_decode($json64, true);
-			$data = $json === false ? null : json_decode($json, true);
-			if (is_array($data)) {
-				// The body coming from the mailto URI must survive untouched; the JSON-LD
-				// payload is only ever appended after it.
-				$params['body'] = ($params['body'] ?? '') . $this->buildComposeBody($data);
-			}
-		}
 
-		array_walk(
-			$params,
+		array_walk($params,
 			static function (&$value, $key) {
 				$value = "$key=" . urlencode($value);
-			}
-		);
+			});
 		$name = '?' . implode('&', $params);
 		$baseUrl = $this->urlGenerator->linkToRoute('mail.page.mailto');
-
-		$this->logger->critical('builtBody: ' . print_r([
-			'builtBody' => $this->buildComposeBody($data),
-		], true));
-
-		$this->logger->critical('Name: ' . print_r([
-			'name' => $name,
-		], true));
-
 		return new RedirectResponse($baseUrl . $name);
 	}
 
 	/**
-	 * Build the JSON-LD addition that gets appended to the original compose body.
+	 * @NoAdminRequired
 	 *
-	 * The returned markup consists of two parts only:
-	 *  1. the untouched JSON-LD payload inside a <script type="application/ld+json"> tag
-	 *  2. the rendered mustache "card" for that payload
+	 * Accept JSON-LD in a native browser POST and render the normal Mail page.
+	 * This action intentionally keeps CSRF protection enabled.
 	 *
-	 * The caller is responsible for keeping the original body in front of this.
+	 * @throws ClientException
 	 */
-	private function buildComposeBody(array $data): string
-	{
-		$json = json_encode($data, JSON_UNESCAPED_SLASHES);
-		if ($json === false) {
-			return '';
+	#[TrapError]
+	public function composeJsonLd(mixed $jsonld = null, mixed $accountId = null): Response {
+		if ($this->currentUserId === null) {
+			return JsonResponse::fail([], Http::STATUS_UNAUTHORIZED);
 		}
 
-		// Prevent the payload from breaking out of the script element.
-		$scriptPayload = str_replace('</', '<\/', $json);
+		if (!is_string($jsonld) || $jsonld === '') {
+			throw new ClientException('A JSON-LD object is required.');
+		}
+		if ($accountId !== null && !is_string($accountId)) {
+			throw new ClientException('The account ID must be a positive integer.');
+		}
 
+		$decoded = json_decode($jsonld, true);
+		if (json_last_error() !== JSON_ERROR_NONE) {
+			throw new ClientException('The JSON-LD value is not valid JSON.');
+		}
+		$topLevel = json_decode($jsonld);
+
+		if (!is_object($topLevel) || !$decoded || !is_array($decoded)) {
+			throw new ClientException('The JSON-LD value must be a nonempty JSON object.');
+		}
+
+		$accounts = $this->accountService->findByUserId($this->currentUserId);
+		if ($accounts === []) {
+			throw new ClientException('No Mail account is configured for this user.');
+		}
+
+		$selectedAccount = null;
+		if ($accountId === null || $accountId === '') {
+			$selectedAccount = $accounts[0];
+		} else {
+			if (preg_match('/^[1-9][0-9]*$/D', $accountId) !== 1 || filter_var($accountId, FILTER_VALIDATE_INT) === false) {
+				throw new ClientException('The account ID must be a positive integer.');
+			}
+
+			$requestedAccountId = (int)$accountId;
+			foreach ($accounts as $account) {
+				if ($account->getId() === $requestedAccountId) {
+					$selectedAccount = $account;
+					break;
+				}
+			}
+
+			if ($selectedAccount === null) {
+				return JsonResponse::fail([], Http::STATUS_FORBIDDEN);
+			}
+		}
+
+		$composeData = [
+			'accountId' => $selectedAccount->getId(),
+			'to' => [],
+			'cc' => [],
+			'bcc' => [],
+			'subject' => '',
+			'isHtml' => true,
+			'bodyHtml' => $this->buildComposeBody($decoded, $jsonld),
+			'bodyPlain' => '',
+			'attachments' => [],
+		];
+		$this->initialStateService->provideInitialState('compose-data', $composeData);
+
+		return $this->index();
+	}
+
+	/**
+	 * Build the compose body from the original JSON-LD and its rendered card.
+	 */
+	private function buildComposeBody(array $data, string $json): string {
 		try {
 			$card = self::renderLd($data);
 		} catch (Throwable $e) {
@@ -553,7 +596,7 @@ class PageController extends Controller {
 			$card = '';
 		}
 
-		return '<div><script type="application/ld+json">' . $scriptPayload . '</script></div>' . $card;
+		return '<div><script type="application/ld+json">' . $json . '</script></div>' . $card;
 	}
 
 	/**
@@ -591,8 +634,7 @@ class PageController extends Controller {
 	 *
 	 * @param array|object $jsonld
 	 */
-	public static function renderLd($jsonld): string
-	{
+	public static function renderLd($jsonld): string {
 		if (is_object($jsonld)) {
 			$jsonld = (array)$jsonld;
 		}
@@ -616,8 +658,7 @@ class PageController extends Controller {
 	 * WARNING: reads from the manually copied template directory, see
 	 * {@see self::LD_TEMPLATE_DIR}. A missing file means the copy went stale.
 	 */
-	private static function readLdTemplate(string $fileName): string
-	{
+	private static function readLdTemplate(string $fileName): string {
 		$path = self::LD_TEMPLATE_DIR . $fileName;
 		$contents = is_file($path) ? file_get_contents($path) : false;
 		if ($contents === false) {

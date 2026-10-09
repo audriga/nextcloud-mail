@@ -16,6 +16,9 @@ use OCA\Mail\Contracts\IUserPreferences;
 use OCA\Mail\Controller\PageController;
 use OCA\Mail\Db\Mailbox;
 use OCA\Mail\Db\TagMapper;
+use OCA\Mail\Exception\ClientException;
+use OCA\Mail\Http\JsonResponse;
+use OCA\Mail\Http\Middleware\ErrorMiddleware;
 use OCA\Mail\Service\AccountService;
 use OCA\Mail\Service\AiIntegrations\AiIntegrationsService;
 use OCA\Mail\Service\AliasesService;
@@ -27,8 +30,10 @@ use OCA\Mail\Service\OutboxService;
 use OCA\Mail\Service\QuickActionsService;
 use OCA\Mail\Service\SmimeService;
 use OCP\App\IAppManager;
+use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\AppFramework\Http\RedirectResponse;
+use OCP\AppFramework\Http\Response;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Services\IInitialState;
 use OCP\Authentication\LoginCredentials\ICredentials;
@@ -43,9 +48,27 @@ use OCP\IUserSession;
 use OCP\User\IAvailabilityCoordinator;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
+use function array_filter;
+use function array_values;
+use function json_decode;
+use function json_encode;
+use function preg_match;
+use function preg_replace;
+use function str_repeat;
 use function urlencode;
 
 class PageControllerTest extends TestCase {
+	public function testComposeRoutesSharePathWithDistinctHttpMethods(): void {
+		$routeConfig = require __DIR__ . '/../../../appinfo/routes.php';
+		$composeRoutes = array_values(array_filter($routeConfig['routes'],
+			static fn (array $route): bool => $route['url'] === '/compose'));
+
+		$this->assertSame([
+			['name' => 'page#compose', 'url' => '/compose', 'verb' => 'GET'],
+			['name' => 'page#composeJsonLd', 'url' => '/compose', 'verb' => 'POST'],
+		], $composeRoutes);
+	}
+
 	/** @var string */
 	private $appName;
 
@@ -116,6 +139,7 @@ class PageControllerTest extends TestCase {
 	private ContextChatSettingsService $contextChatSettingsService;
 
 	private ClassificationSettingsService|MockObject $classificationSettingsService;
+	private array $providedInitialStates = [];
 	protected function setUp(): void {
 		parent::setUp();
 
@@ -460,5 +484,161 @@ class PageControllerTest extends TestCase {
 		$response = $this->controller->compose($uri);
 
 		$this->assertEquals($expected, $response);
+	}
+
+	public function testComposeJsonLdRendersHtmlWithOwnedAccountAndPreservesPayload(): void {
+		$account1 = $this->createStub(Account::class);
+		$account1->method('getId')->willReturn(12);
+		$account1->method('jsonSerialize')->willReturn(['accountId' => 12]);
+		$account2 = $this->createStub(Account::class);
+		$account2->method('getId')->willReturn(27);
+		$account2->method('jsonSerialize')->willReturn(['accountId' => 27]);
+		$this->configureComposePageResponse([$account1, $account2]);
+		$jsonld = json_encode([
+			'@type' => 'Recipe',
+			'name' => 'Soupe & crème "été"',
+			'description' => "line 1\nline 2 <img src=x onerror=alert(1)> 🍲",
+		], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+		$response = $this->controller->composeJsonLd($jsonld, '27');
+
+		$this->assertInstanceOf(TemplateResponse::class, $response);
+		$this->assertSame(27, $this->providedInitialStates['compose-data']['accountId']);
+		$this->assertSame([], $this->providedInitialStates['compose-data']['to']);
+		$this->assertSame([], $this->providedInitialStates['compose-data']['cc']);
+		$this->assertSame([], $this->providedInitialStates['compose-data']['bcc']);
+		$this->assertSame('', $this->providedInitialStates['compose-data']['subject']);
+		$this->assertSame([], $this->providedInitialStates['compose-data']['attachments']);
+		$this->assertArrayNotHasKey('id', $this->providedInitialStates['compose-data']);
+		$this->assertArrayNotHasKey('draftId', $this->providedInitialStates['compose-data']);
+
+		$body = $this->providedInitialStates['compose-data']['bodyHtml'];
+		$this->assertStringContainsString('<table', $body);
+		$this->assertStringContainsString($jsonld, $body);
+		preg_match('~<script type="application/ld\\+json">(.*?)</script>~s', $body, $matches);
+		$this->assertCount(2, $matches);
+		$this->assertSame(json_decode($jsonld, true), json_decode($matches[1], true));
+		$renderedCard = preg_replace('~<script type="application/ld\\+json">.*?</script>~s', '', $body);
+		$this->assertStringContainsString('&lt;img src=x onerror=alert(1)&gt;', $renderedCard);
+	}
+
+	public function testComposeJsonLdEmbedsOriginalJsonWithoutEscaping(): void {
+		$account = $this->createStub(Account::class);
+		$account->method('getId')->willReturn(12);
+		$account->method('jsonSerialize')->willReturn(['accountId' => 12]);
+		$this->configureComposePageResponse([$account]);
+		$jsonld = '{"@type":"Recipe","description":"<!--<script>example </script>"}';
+
+		$this->controller->composeJsonLd($jsonld);
+
+		$this->assertStringStartsWith('<div><script type="application/ld+json">' . $jsonld . '</script></div>', $this->providedInitialStates['compose-data']['bodyHtml']);
+	}
+
+	public function testComposeJsonLdDefaultsToFirstOwnedAccount(): void {
+		$account1 = $this->createStub(Account::class);
+		$account1->method('getId')->willReturn(12);
+		$account1->method('jsonSerialize')->willReturn(['accountId' => 12]);
+		$account2 = $this->createStub(Account::class);
+		$account2->method('getId')->willReturn(27);
+		$account2->method('jsonSerialize')->willReturn(['accountId' => 27]);
+		$this->configureComposePageResponse([$account1, $account2]);
+
+		$response = $this->controller->composeJsonLd('{"@type":"Recipe","name":"Bread"}');
+
+		$this->assertInstanceOf(TemplateResponse::class, $response);
+		$this->assertSame(12, $this->providedInitialStates['compose-data']['accountId']);
+	}
+
+	public function testComposeJsonLdKeepsLargePayloadInRequestLocalPageState(): void {
+		$account = $this->createStub(Account::class);
+		$account->method('getId')->willReturn(12);
+		$account->method('jsonSerialize')->willReturn(['accountId' => 12]);
+		$this->configureComposePageResponse([$account]);
+		$description = str_repeat('🍲 & crème ', 1500);
+		$jsonld = json_encode(['@type' => 'Recipe', 'description' => $description], JSON_UNESCAPED_UNICODE);
+
+		$response = $this->controller->composeJsonLd($jsonld);
+
+		$this->assertInstanceOf(TemplateResponse::class, $response);
+		$this->assertGreaterThan(8192, strlen($jsonld));
+		$this->assertArrayHasKey('compose-data', $this->providedInitialStates);
+		$this->assertStringContainsString($description, $this->providedInitialStates['compose-data']['bodyHtml']);
+	}
+
+	public function testComposeJsonLdRejectsInvalidPayloads(): void {
+		foreach ([null, [], '', '{', "\xB1", 'null', '"text"', '12', 'true', '[]', '[{"@type":"Recipe"}]', '{}'] as $jsonld) {
+			$response = $this->composeJsonLdResponse($jsonld);
+
+			$this->assertInstanceOf(JsonResponse::class, $response);
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+			$this->assertSame('fail', $response->getData()['status']);
+			$this->assertSame(ClientException::class, $response->getData()['data']['type']);
+		}
+	}
+
+	public function testComposeJsonLdRejectsMissingAndUnauthorizedAccounts(): void {
+		$accounts = [];
+		$this->accountService->method('findByUserId')->willReturnCallback(static function () use (&$accounts): array {
+			return $accounts;
+		});
+		$noAccountResponse = $this->composeJsonLdResponse('{"@type":"Recipe"}');
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $noAccountResponse->getStatus());
+		$this->assertInstanceOf(JsonResponse::class, $noAccountResponse);
+		$this->assertSame('No Mail account is configured for this user.', $noAccountResponse->getData()['data']['message']);
+
+		$ownedAccount = $this->createStub(Account::class);
+		$ownedAccount->method('getId')->willReturn(12);
+		$accounts = [$ownedAccount];
+		$unauthorizedResponse = $this->controller->composeJsonLd('{"@type":"Recipe"}', '999');
+		$this->assertSame(Http::STATUS_FORBIDDEN, $unauthorizedResponse->getStatus());
+		$this->assertInstanceOf(JsonResponse::class, $unauthorizedResponse);
+		$this->assertSame(['status' => 'fail', 'data' => []], $unauthorizedResponse->getData());
+		$invalidAccountResponse = $this->composeJsonLdResponse('{"@type":"Recipe"}', '0');
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $invalidAccountResponse->getStatus());
+		$this->assertInstanceOf(JsonResponse::class, $invalidAccountResponse);
+		$arrayAccountResponse = $this->composeJsonLdResponse('{"@type":"Recipe"}', []);
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $arrayAccountResponse->getStatus());
+		$this->assertInstanceOf(JsonResponse::class, $arrayAccountResponse);
+	}
+
+	private function composeJsonLdResponse(mixed $jsonld, mixed $accountId = null): Response {
+		try {
+			return $this->controller->composeJsonLd($jsonld, $accountId);
+		} catch (ClientException $exception) {
+			$middleware = new ErrorMiddleware($this->config, $this->logger);
+			return $middleware->afterException($this->controller, 'composeJsonLd', $exception);
+		}
+	}
+
+	private function configureComposePageResponse(array $accounts): void {
+		$this->providedInitialStates = [];
+		$this->initialState->method('provideInitialState')->willReturnCallback(function (string $name, mixed $value): void {
+			$this->providedInitialStates[$name] = $value;
+		});
+		$this->accountService->method('findByUserId')->willReturn($accounts);
+		$this->accountService->method('findDelegatedAccounts')->willReturn([]);
+		$this->aliasesService->method('findAll')->willReturn([]);
+		$this->mailManager->method('getMailboxes')->willReturn([]);
+		$this->preferences->method('getPreference')->willReturnCallback(static fn (...$args) => $args[count($args) - 1] ?? null);
+		$this->config->method('getSystemValue')->willReturnCallback(static fn (...$args) => $args[count($args) - 1] ?? null);
+		$this->config->method('getAppValue')->willReturnCallback(static fn (...$args) => $args[count($args) - 1] ?? null);
+		$this->config->method('getUserValue')->willReturn('');
+		$user = $this->createStub(IUser::class);
+		$user->method('getUID')->willReturn($this->userId);
+		$this->userSession->method('getUser')->willReturn($user);
+		$this->userManager->method('getDisplayName')->willReturn('Jane Doe');
+		$credentials = $this->createStub(ICredentials::class);
+		$credentials->method('getPassword')->willReturn(null);
+		$this->credentialStore->method('getLoginCredentials')->willReturn($credentials);
+		$this->tagMapper->method('getAllTagsForUser')->willReturn([]);
+		$this->internalAddressService->method('getInternalAddresses')->willReturn([]);
+		$this->smimeService->method('findAllCertificates')->willReturn([]);
+		$this->availabilityCoordinator->method('isEnabled')->willReturn(false);
+		$this->quickActionsService->method('findAll')->willReturn([]);
+		$this->appManager->method('getAppVersion')->willReturn('0.0.1-dev.0');
+		$this->appManager->method('isEnabledForUser')->willReturn(false);
+		$this->contextChatSettingsService->method('isIndexingEnabled')->willReturn(false);
+		$this->aiIntegrationsService->method('isLlmProcessingEnabled')->willReturn(false);
+		$this->classificationSettingsService->method('isClassificationEnabledByDefault')->willReturn(false);
 	}
 }
