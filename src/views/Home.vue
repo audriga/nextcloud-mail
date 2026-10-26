@@ -153,6 +153,7 @@ export default {
 					bcc: this.$route.query.bcc,
 					subject: this.$route.query.subject,
 					body: this.$route.query.body,
+					itemid: this.$route.query.itemid,
 				},
 			})
 		}

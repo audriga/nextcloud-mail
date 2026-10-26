@@ -221,6 +221,8 @@ import {
 	priorityOtherQuery,
 } from '../util/priorityInbox.js'
 import { detect, toHtml, toPlain } from '../util/text.js'
+import { loadState } from '@nextcloud/initial-state'
+import hetc from 'hetc/hetc-bundle.mjs'
 
 const START_MAILBOX_DEBOUNCE = 5 * 1000
 
@@ -536,7 +538,42 @@ export default {
 					accountId = parseInt(this.$route.params.accountId, 10)
 				}
 
-				const body = detect(this.$route.query.body ?? '')
+				const initialAccountId = loadState('mail', 'mailto_account_id', null)
+				if (initialAccountId) {
+					accountId = parseInt(initialAccountId, 10)
+				}
+
+				const itemId = loadState('mail', 'mailto_item_id', null) || this.$route.query?.itemid
+
+				let isHtml = false
+				let bodyHtml = ''
+				let bodyPlain = ''
+
+				if (itemId) {
+					const rawPayload = sessionStorage.getItem(itemId)
+					if (rawPayload) {
+						sessionStorage.removeItem(itemId)
+						try {
+							const parsed = JSON.parse(rawPayload)
+							const jsonldData = parsed?.jsonld !== undefined ? parsed.jsonld : parsed
+							const jsonObj = typeof jsonldData === 'string' ? JSON.parse(jsonldData) : jsonldData
+							const jsonString = typeof jsonldData === 'string' ? jsonldData : JSON.stringify(jsonldData)
+
+							const cardHtml = hetc.renderLd(jsonObj)
+							bodyHtml = '<div><script type="application/ld+json">' + jsonString + '<\x2fscript></div>' + cardHtml + '<br>'
+							isHtml = true
+						} catch (e) {
+							logger.error('[Mailto] Failed to parse or render JSON-LD from sessionStorage', { error: e })
+						}
+					}
+				}
+
+				if (!bodyHtml) {
+					const body = detect(this.$route.query.body ?? '')
+					isHtml = body.format === 'html'
+					bodyHtml = toHtml(body).value
+					bodyPlain = toPlain(body).value
+				}
 
 				this.mainStore.startComposerSession({
 					data: {
@@ -545,9 +582,9 @@ export default {
 						cc: this.stringToRecipients(this.$route.query.cc),
 						bcc: this.stringToRecipients(this.$route.query.bcc),
 						subject: this.$route.query.subject || '',
-						isHtml: body.format === 'html',
-						bodyHtml: toHtml(body).value,
-						bodyPlain: toPlain(body).value,
+						isHtml,
+						bodyHtml,
+						bodyPlain,
 					},
 				})
 			}

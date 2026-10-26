@@ -514,166 +514,20 @@ class PageController extends Controller {
 
 	/**
 	 * @NoAdminRequired
-	 *
-	 * Accept JSON-LD in a native browser POST and render the normal Mail page.
-	 * This action intentionally keeps CSRF protection enabled.
-	 *
-	 * @throws ClientException
-	 */
-	#[TrapError]
-	public function composeJsonLd(mixed $jsonld = null, mixed $accountId = null): Response {
-		if ($this->currentUserId === null) {
-			return JsonResponse::fail([], Http::STATUS_UNAUTHORIZED);
-		}
-
-		if (!is_string($jsonld) || $jsonld === '') {
-			throw new ClientException('A JSON-LD object is required.');
-		}
-		if ($accountId !== null && !is_string($accountId)) {
-			throw new ClientException('The account ID must be a positive integer.');
-		}
-
-		$decoded = json_decode($jsonld, true);
-		if (json_last_error() !== JSON_ERROR_NONE) {
-			throw new ClientException('The JSON-LD value is not valid JSON.');
-		}
-		$topLevel = json_decode($jsonld);
-
-		if (!is_object($topLevel) || !$decoded || !is_array($decoded)) {
-			throw new ClientException('The JSON-LD value must be a nonempty JSON object.');
-		}
-
-		$accounts = $this->accountService->findByUserId($this->currentUserId);
-		if ($accounts === []) {
-			throw new ClientException('No Mail account is configured for this user.');
-		}
-
-		$selectedAccount = null;
-		if ($accountId === null || $accountId === '') {
-			$selectedAccount = $accounts[0];
-		} else {
-			if (preg_match('/^[1-9][0-9]*$/D', $accountId) !== 1 || filter_var($accountId, FILTER_VALIDATE_INT) === false) {
-				throw new ClientException('The account ID must be a positive integer.');
-			}
-
-			$requestedAccountId = (int)$accountId;
-			foreach ($accounts as $account) {
-				if ($account->getId() === $requestedAccountId) {
-					$selectedAccount = $account;
-					break;
-				}
-			}
-
-			if ($selectedAccount === null) {
-				return JsonResponse::fail([], Http::STATUS_FORBIDDEN);
-			}
-		}
-
-		$composeData = [
-			'accountId' => $selectedAccount->getId(),
-			'to' => [],
-			'cc' => [],
-			'bcc' => [],
-			'subject' => '',
-			'isHtml' => true,
-			'bodyHtml' => $this->buildComposeBody($decoded, $jsonld),
-			'bodyPlain' => '',
-			'attachments' => [],
-		];
-		$this->initialStateService->provideInitialState('compose-data', $composeData);
-
-		return $this->index();
-	}
-
-	/**
-	 * Build the compose body from the original JSON-LD and its rendered card.
-	 */
-	private function buildComposeBody(array $data, string $json): string {
-		try {
-			$card = self::renderLd($data);
-		} catch (Throwable $e) {
-			$this->logger->warning('Could not render JSON-LD card: ' . $e->getMessage(), ['exception' => $e]);
-			$card = '';
-		}
-
-		return '<div><script type="application/ld+json">' . $json . '</script></div>' . $card;
-	}
-
-	/**
-	 * Directory holding the mustache templates used by {@see self::renderLd()}.
-	 *
-	 */
-
-	private const LD_TEMPLATE_DIR = __DIR__ . '/../../node_modules/hetc/templates/schema_org/';
-
-	/**
-	 * Maps a schema.org @type to the mustache sub template rendering it.
-	 *
-	 * WARNING: the file names must match the copied templates exactly, there is
-	 * no fallback other than sub_Thing.html.
-	 */
-	private const LD_SUB_TEMPLATES = [
-		'Place' => 'sub_Place.html',
-		'Product' => 'sub_Product.html',
-		'Recipe' => 'sub_Recipe.html',
-		'BusinessEvent' => 'sub_BusinessEvent.html',
-		'NewsArticle' => 'sub_NewsArticle.html',
-		'MusicComposition' => 'sub_MusicComposition.html',
-		'MusicGroup' => 'sub_MusicGroup.html',
-		'MusicAlbum' => 'sub_MusicAlbum.html',
-		'MusicRecording' => 'sub_MusicRecording.html',
-		'EventReservation' => 'sub_EventReservation.html',
-		'ConfirmAction' => 'sub_ConfirmAction.html',
-	];
-
-	/**
-	 * Render a JSON-LD payload into an HTML "card".
-	 *
-	 * NOTE: the super template is a bare <tr>, so the result is wrapped into a
-	 * <table> here to keep it a self contained HTML fragment.
-	 *
-	 * @param array|object $jsonld
-	 */
-	public static function renderLd($jsonld): string {
-		if (is_object($jsonld)) {
-			$jsonld = (array)$jsonld;
-		}
-
-		$superThing = self::readLdTemplate('super_Thing_default_card.html');
-		$subTemplateFile = self::LD_SUB_TEMPLATES[$jsonld['@type'] ?? ''] ?? 'sub_Thing.html';
-		$subtemplate = self::readLdTemplate($subTemplateFile);
-
-		$mustache = new \Mustache_Engine([
-			'partials' => [
-				'subTemplateContent' => $subtemplate,
-			],
-		]);
-
-		return '<table role="presentation" cellspacing="0" cellpadding="0" border="0">'
-			. $mustache->render($superThing, $jsonld)
-			. '</table>';
-	}
-
-	/**
-	 * WARNING: reads from the manually copied template directory, see
-	 * {@see self::LD_TEMPLATE_DIR}. A missing file means the copy went stale.
-	 */
-	private static function readLdTemplate(string $fileName): string {
-		$path = self::LD_TEMPLATE_DIR . $fileName;
-		$contents = is_file($path) ? file_get_contents($path) : false;
-		if ($contents === false) {
-			throw new \RuntimeException("Missing JSON-LD template $fileName. Did you forget to copy it from node_modules/hetc/templates/schema_org/?");
-		}
-
-		return $contents;
-	}
-	/**
-	 * @NoAdminRequired
 	 * @NoCSRFRequired
+	 *
+	 * @param string|null $itemid SessionStorage item ID for JSON-LD compose
+	 * @param mixed $accountId Optional mail account ID
 	 *
 	 * @return TemplateResponse
 	 */
-	public function mailto(): TemplateResponse {
+	public function mailto(?string $itemid = null, mixed $accountId = null): TemplateResponse {
+		if ($itemid !== null && $itemid !== '') {
+			$this->initialStateService->provideInitialState('mailto_item_id', $itemid);
+		}
+		if ($accountId !== null && $accountId !== '') {
+			$this->initialStateService->provideInitialState('mailto_account_id', (int)$accountId);
+		}
 		return $this->index();
 	}
 }
