@@ -216,8 +216,14 @@ return [
 			'verb' => 'GET'
 		],
 		[
+			// TODO: If removing this ajax call is ok, remove this route.
 			'name' => 'messages#getItineraries',
 			'url' => '/api/messages/{id}/itineraries',
+			'verb' => 'GET'
+		],
+		[
+			'name' => 'messages#updateSchemaContent',
+			'url' => '/api/messages/updateSchema/{url}',
 			'verb' => 'GET'
 		],
 		[

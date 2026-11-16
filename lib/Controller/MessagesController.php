@@ -30,6 +30,7 @@ use OCA\Mail\Service\AiIntegrations\AiIntegrationsService;
 use OCA\Mail\Service\DelegationService;
 use OCA\Mail\Service\ItineraryService;
 use OCA\Mail\Service\MailManager;
+use OCA\Mail\Service\SchemaService;
 use OCA\Mail\Service\SmimeService;
 use OCA\Mail\Service\SnoozeService;
 use OCP\App\IAppManager;
@@ -51,6 +52,7 @@ use OCP\Files\IMimeTypeDetector;
 use OCP\Files\NotPermittedException;
 use OCP\ICache;
 use OCP\ICacheFactory;
+use OCP\IConfig;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IURLGenerator;
@@ -72,7 +74,9 @@ class MessagesController extends Controller {
 		private MailManager $mailManager,
 		private IMailSearch $mailSearch,
 		private ItineraryService $itineraryService,
+		private SchemaService $schemaService,
 		private ?string $userId,
+		private IConfig $config,
 		private ?Folder $userFolder,
 		private IFilenameValidator $filenameValidator,
 		private LoggerInterface $logger,
@@ -226,9 +230,20 @@ class MessagesController extends Controller {
 
 		$json = $imapMessage->getFullMessage($id);
 
-		$itineraries = $this->itineraryService->getCached($account, $mailbox, $message->getId());
-		if ($itineraries) {
-			$json['itineraries'] = $itineraries;
+		// REBASE-6.0-ASSUMPTION [Crucialness: Medium]:
+		// Upstream 6.0 uses $message->getId() rather than getUid() for itinerary caching/extraction.
+		// Retain extraction library config switch between 'kitinerary' and 'h2ld' (SchemaService).
+		$extractionLibrary = $this->config->getAppValue('mail', 'markup_library_used_for_extraction', 'h2ld');
+		if ($extractionLibrary === 'kitinerary') {
+			$itineraries = $this->itineraryService->extract($account, $mailbox, $message);
+			if ($itineraries && !empty($itineraries)) {
+				$json['schema'] = $itineraries;
+			}
+		} else {
+			$schema = $this->schemaService->extract($account, $mailbox, $message->getId());
+			if ($schema) {
+				$json['schema'] = $schema;
+			}
 		}
 		$json['attachments'] = $this->enrichAttachments($id, $json['attachments']);
 		$json['inlineAttachments'] = $this->enrichAttachments($id, $json['inlineAttachments']);
@@ -268,6 +283,12 @@ class MessagesController extends Controller {
 	#[NoAdminRequired]
 	#[TrapError]
 	public function getItineraries(int $id): JSONResponse {
+		// REBASE-6.0-ASSUMPTION [Crucialness: Low]:
+		// If extraction library is not kitinerary, reject direct getItineraries call as in 5.9 patch.
+		if ($this->config->getAppValue('mail', 'markup_library_used_for_extraction', 'h2ld') !== 'kitinerary') {
+			return new JSONResponse([], Http::STATUS_NOT_ACCEPTABLE);
+		}
+
 		if ($this->userId === null) {
 			return new JSONResponse([], Http::STATUS_UNAUTHORIZED);
 		}
@@ -1110,5 +1131,22 @@ class MessagesController extends Controller {
 
 	private function getCacheForAccount(int $accountId): ICache {
 		return $this->cacheFactory->createDistributed("mail_account_$accountId");
+	}
+
+	#[NoAdminRequired]
+	public function updateSchemaContent(string $url): JSONResponse {
+		$decodedUrl = rawurldecode($url);
+
+		if (!preg_match('/.*\.json$/', $decodedUrl)) {
+			return new JSONResponse([], Http::STATUS_BAD_REQUEST);
+		}
+
+		$data = json_decode(file_get_contents($decodedUrl));
+
+		if ($data) {
+			return new JSONResponse($data);
+		}
+
+		return new JSONResponse([], Http::STATUS_BAD_REQUEST);
 	}
 }
