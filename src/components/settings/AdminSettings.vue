@@ -4,7 +4,7 @@
 -->
 
 <template>
-	<NcSettingsSection
+	<SettingsSection
 		:name="t('mail', 'Mail app')"
 		:description="t('mail', 'The mail app allows users to read mails on their IMAP accounts.')">
 		<p>
@@ -91,7 +91,7 @@
 			}}
 		</h3>
 		<p>
-			<NcButton
+			<ButtonVue
 				class="config-button"
 				:aria-label="t('mail', 'Add new config')"
 				@click="addNew = true">
@@ -99,8 +99,8 @@
 					<IconAdd :size="20" />
 				</template>
 				{{ t('mail', 'Add new config') }}
-			</NcButton>
-			<NcButton
+			</ButtonVue>
+			<ButtonVue
 				class="config-button"
 				:aria-label="t('mail', 'Provision all accounts')"
 				@click="provisionAll">
@@ -108,13 +108,13 @@
 					<IconSettings :size="20" />
 				</template>
 				{{ t('mail', 'Provision all accounts') }}
-			</NcButton>
+			</ButtonVue>
 			<ProvisioningSettings
 				v-if="addNew"
 				:key="formKey"
 				:setting="preview"
 				:submit="saveNewSettings"
-				:deleteButton="false" />
+				:delete-button="false" />
 			<ProvisioningSettings
 				v-for="setting in configs"
 				:id="setting.id"
@@ -130,7 +130,7 @@
 					<NcCheckboxRadioSwitch
 						v-model="allowNewMailAccounts"
 						type="switch"
-						@update:modelValue="updateAllowNewMailAccounts">
+						@update:checked="updateAllowNewMailAccounts">
 						{{ t('mail', 'Allow additional Mail accounts from User Settings') }}
 					</NcCheckboxRadioSwitch>
 				</p>
@@ -148,7 +148,7 @@
 					<NcCheckboxRadioSwitch
 						v-model="isLlmEnabled"
 						type="switch"
-						@update:modelValue="updateLlmEnabled">
+						@update:checked="updateLlmEnabled">
 						{{ t('mail', 'Enable LLM processing') }}
 					</NcCheckboxRadioSwitch>
 				</p>
@@ -163,8 +163,8 @@
 				<p>
 					<NcCheckboxRadioSwitch
 						type="switch"
-						:modelValue="isImportanceClassificationEnabledByDefault"
-						@update:modelValue="setImportanceClassificationEnabledByDefault">
+						:model-value="isImportanceClassificationEnabledByDefault"
+						@update:checked="setImportanceClassificationEnabledByDefault">
 						{{ t('mail', 'Enable classification of important mails by default') }}
 					</NcCheckboxRadioSwitch>
 				</p>
@@ -228,7 +228,7 @@
 					}}
 				</p>
 			</article>
-			<GmailAdminOauthSettings :clientId="googleOauthClientId" />
+			<GmailAdminOauthSettings :client-id="googleOauthClientId" />
 		</div>
 		<div class="app-description">
 			<h3>
@@ -243,61 +243,97 @@
 				</p>
 				<a :href="microsoftOauthDocs" target="_blank" rel="noopener noreferrer">{{ t('mail', 'For more details, please click here to open our documentation.') }}</a>
 			</article>
-			<MicrosoftAdminOauthSettings :tenantId="microsoftOauthTenantId" :clientId="microsoftOauthClientId" />
-		</div>
-		<div class="app-description">
-			<h3>
-				{{ t('mail', 'OpenID Connect integration') }}
-			</h3>
-			<OidcAdminSettings />
+			<MicrosoftAdminOauthSettings :tenant-id="microsoftOauthTenantId" :client-id="microsoftOauthClientId" />
 		</div>
 		<div class="app-description">
 			<h3>{{ t('mail', 'User Interface Preference Defaults') }}</h3>
 			<article>
 				<p>
-					{{ t('mail', 'These settings are used to pre-configure the user interface preferences they can be overridden by the user in the mail settings') }}
+					{{
+						t(
+							'mail',
+							'(Experimental) You can choose which library is used to extract markup data from emails.'
+						)
+					}}
+					<br>
+					<br>
+					{{
+						t(
+							'mail',
+							'Kitinerary will extract Itinerary data from the mail body and attachments.'
+						)
+					}}
+					<br>
+					{{
+						t(
+							'mail',
+							'This will include reservations for flights, trains or events.'
+						)
+					}}
+					<br>
+					<br>
+					{{
+						t(
+							'mail',
+							'HTML2JsonLd will extract Markup data from the mail body.'
+						)
+					}}
+					<br>
+					{{
+						t(
+							'mail',
+							'This will include any type of markup data like json+ld or microdata.'
+						)
+					}}
 				</p>
-			</article>
-			<br>
-			<article>
-				<p>
-					{{ t('mail', 'Message View Mode') }}
-				</p>
+				<div style="display: flex">
+					<NcCheckboxRadioSwitch :button-variant="true"
+						:checked.sync="markupLibrary"
+						value="h2ld"
+						name="backend_markup_extraction_radio">
+                    </NcCheckboxRadioSwitch>
 				<p>
 					<NcCheckboxRadioSwitch
 						v-model="layoutMessageView"
 						type="radio"
+						button-variant-grouped="horizontal"
 						name="message_view_mode_radio"
 						value="threaded"
-						@update:modelValue="setLayoutMessageView('threaded')">
+						@update:checked="setLayoutMessageView('threaded')">
 						{{ t('mail', 'Show all messages in thread') }}
 					</NcCheckboxRadioSwitch>
+					<NcCheckboxRadioSwitch :button-variant="true"
+						:checked.sync="markupLibrary"
+						value="kitinerary"
+						name="backend_markup_extraction_radio">
+                    </NcCheckboxRadioSwitch>
 					<NcCheckboxRadioSwitch
 						v-model="layoutMessageView"
 						type="radio"
 						name="message_view_mode_radio"
 						value="singleton"
-						@update:modelValue="setLayoutMessageView('singleton')">
+						@update:checked="setLayoutMessageView('singleton')"
+						button-variant-grouped="horizontal">
 						{{ t('mail', 'Show only the selected message') }}
 					</NcCheckboxRadioSwitch>
 				</p>
+                </div>
 			</article>
 		</div>
-	</NcSettingsSection>
+	</SettingsSection>
 </template>
 
 <script>
 import { showError, showSuccess } from '@nextcloud/dialogs'
 import { loadState } from '@nextcloud/initial-state'
-import NcButton from '@nextcloud/vue/components/NcButton'
+import ButtonVue from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
-import NcSettingsSection from '@nextcloud/vue/components/NcSettingsSection'
+import SettingsSection from '@nextcloud/vue/components/NcSettingsSection'
 import IconSettings from 'vue-material-design-icons/CogOutline.vue'
 import IconAdd from 'vue-material-design-icons/Plus.vue'
 import AntiSpamSettings from './AntiSpamSettings.vue'
 import GmailAdminOauthSettings from './GmailAdminOauthSettings.vue'
 import MicrosoftAdminOauthSettings from './MicrosoftAdminOauthSettings.vue'
-import OidcAdminSettings from './OidcAdminSettings.vue'
 import ProvisioningSettings from './ProvisioningSettings.vue'
 import logger from '../../logger.js'
 import {
@@ -310,6 +346,7 @@ import {
 	updateEnabledSmartReply,
 	updateLlmEnabled,
 	updateProvisioningSettings,
+	updateMarkupLibrary,
 } from '../../service/SettingsService.js'
 
 const googleOauthClientId = loadState('mail', 'google_oauth_client_id', null) ?? undefined
@@ -324,10 +361,9 @@ export default {
 		GmailAdminOauthSettings,
 		AntiSpamSettings,
 		MicrosoftAdminOauthSettings,
-		OidcAdminSettings,
 		ProvisioningSettings,
-		NcSettingsSection,
-		NcButton,
+		SettingsSection,
+		ButtonVue,
 		IconAdd,
 		IconSettings,
 		NcCheckboxRadioSwitch,
@@ -381,6 +417,8 @@ export default {
 			isLlmFreePromptConfigured: loadState('mail', 'enabled_llm_free_prompt_backend'),
 			layoutMessageView: loadState('mail', 'layout_message_view'),
 			isImportanceClassificationEnabledByDefault: loadState('mail', 'importance_classification_default', true),
+			markupLibrary: loadState('mail', 'markup_library_used_for_extraction'),
+
 		}
 	},
 
@@ -460,6 +498,9 @@ export default {
 				showError(t('mail', 'Could not save default classification setting'))
 				logger.error('Could not save default classification setting', { error })
 			}
+		},
+		async updateMarkupLibrary(choice) {
+			await updateMarkupLibrary(choice)
 		},
 	},
 }

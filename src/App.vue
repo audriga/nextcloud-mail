@@ -9,7 +9,8 @@
 
 <script>
 import { showError } from '@nextcloud/dialogs'
-import { t } from '@nextcloud/l10n'
+import { loadState } from '@nextcloud/initial-state'
+import { translate as t } from '@nextcloud/l10n'
 import { mapState, mapStores } from 'pinia'
 import MailboxLockedError from './errors/MailboxLockedError.js'
 import { matchError } from './errors/match.js'
@@ -19,12 +20,6 @@ import useMainStore from './store/mainStore.js'
 
 export default {
 	name: 'App',
-	data() {
-		return {
-			syncing: false,
-		}
-	},
-
 	computed: {
 		...mapStores(useMainStore),
 		...mapState(useMainStore, [
@@ -50,6 +45,9 @@ export default {
 
 	async mounted() {
 		initAfterAppCreation()
+		await new Promise((resolve, reject) => {
+			this.$router.onReady(resolve, reject)
+		})
 		// Redirect to setup page if no accounts are configured
 		if (!this.hasMailAccounts) {
 			this.$router.replace({
@@ -70,13 +68,6 @@ export default {
 
 		sync() {
 			setTimeout(async () => {
-				// Don't sync a previous sync is still running
-				if (this.syncing) {
-					this.sync()
-					return
-				}
-
-				this.syncing = true
 				try {
 					await this.mainStore.syncInboxes()
 
@@ -91,7 +82,6 @@ export default {
 						},
 					})
 				} finally {
-					this.syncing = false
 					// Start over
 					this.sync()
 				}

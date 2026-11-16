@@ -5,11 +5,11 @@
 <template>
 	<div id="mail-content">
 		<NeedsTranslationInfo
-			v-if="detectedForeignLanguage"
-			:isHtml="false"
-			@translate="$emit('translate', detectedForeignLanguage)" />
+			v-if="needsTranslation"
+			:is-html="false"
+			@translate="$emit('translate')" />
 		<MdnRequest :message="message" />
-		<div id="message-container" v-html="nl2br(enhancedBody)" />
+		<div id="message-container" ref="messageContainer" v-html="nl2br(enhancedBody)" />
 		<details v-if="signature" class="mail-signature">
 			<summary v-html="nl2br(signatureSummaryAndBody.summary)" />
 			<span v-html="nl2br(signatureSummaryAndBody.body)" />
@@ -18,9 +18,11 @@
 </template>
 
 <script>
+import { loadState } from '@nextcloud/initial-state'
 import MdnRequest from './MdnRequest.vue'
 import NeedsTranslationInfo from './NeedsTranslationInfo.vue'
-import { detectForeignLanguage } from '../util/languageDetection.ts'
+import logger from '../logger.js'
+import { needsTranslation } from '../service/AiIntergrationsService.js'
 
 const regFirstParagraph = /(.+\n\r?)+(\n\r?)+/
 
@@ -44,11 +46,10 @@ export default {
 		},
 	},
 
-	emits: ['translate'],
-
 	data() {
 		return {
-			detectedForeignLanguage: null,
+			needsTranslation: false,
+			enabledFreePrompt: loadState('mail', 'llm_freeprompt_available', false),
 		}
 	},
 
@@ -82,32 +83,105 @@ export default {
 	},
 
 	async mounted() {
-		this.detectedForeignLanguage = await detectForeignLanguage(this.body ?? '')
+		this.installLinkHoverHandlers()
+
+		if (this.enabledFreePrompt && this.message) {
+			this.needsTranslation = await needsTranslation(this.message.databaseId)
+		}
 	},
+	    updated() {
+        this.installLinkHoverHandlers()
+    },
+
+    beforeUnmount() {
+        this.removeLinkHoverHandlers()
+    },
 
 	methods: {
 		nl2br(str) {
 			return str.replace(/(\r\n|\n\r|\n|\r)/g, '<br />')
 		},
+		installLinkHoverHandlers() {
+            const container = this.$refs.messageContainer
+
+            if (!container || container.dataset.linkHoverHandlersInstalled === 'true') {
+                return
+            }
+
+            logger.debug('[MessagePlainTextBody] installing link hover handlers', { linkCount: container.querySelectorAll('a[href]').length })
+
+            container.dataset.linkHoverHandlersInstalled = 'true'
+            container.addEventListener('mouseover', this.onMessageMouseOver)
+            container.addEventListener('mouseout', this.onMessageMouseOut)
+        },
+
+        removeLinkHoverHandlers() {
+            const container = this.$refs.messageContainer
+
+            if (!container) {
+                return
+            }
+
+            container.removeEventListener('mouseover', this.onMessageMouseOver)
+            container.removeEventListener('mouseout', this.onMessageMouseOut)
+            delete container.dataset.linkHoverHandlersInstalled
+        },
+
+        onMessageMouseOver(event) {
+            const link = event.target.closest?.('a[href]')
+
+            if (!link || !this.$refs.messageContainer.contains(link)) {
+                return
+            }
+
+            if (event.relatedTarget && link.contains(event.relatedTarget)) {
+                return
+            }
+
+            logger.debug('[MessagePlainTextBody] onMessageMouseOver', { href: link.href })
+
+            this.$emit('link-hover', {
+				href: link.href,
+				rect: link.getBoundingClientRect(),
+			})
+        },
+
+        onMessageMouseOut(event) {
+            const link = event.target.closest?.('a[href]')
+
+            if (!link) {
+                return
+            }
+
+            if (event.relatedTarget && link.contains(event.relatedTarget)) {
+                return
+            }
+
+            logger.debug('[MessagePlainTextBody] onMessageMouseOut', { href: link.href })
+
+            this.$emit('link-leave')
+        },
 	},
 }
 </script>
 
-<style lang="scss" scoped>
-#message-container,
-.mail-signature {
-	white-space: pre-wrap;
-}
-
-.mail-signature {
+<style lang="scss">
+.quoted-text {
 	color: var(--color-text-maxcontrast);
 
 	summary {
 		cursor: pointer;
 	}
 }
+</style>
 
-#message-container :deep(.quoted-text) {
+<style lang="scss" scoped>
+.message-container,
+.mail-signature {
+	white-space: pre-wrap;
+}
+
+.mail-signature, .quoted {
 	color: var(--color-text-maxcontrast);
 
 	summary {

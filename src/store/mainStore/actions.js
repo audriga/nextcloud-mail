@@ -91,6 +91,8 @@ import {
 	syncEnvelopes as syncEnvelopesExternal,
 	unSnoozeMessage,
 	updateEnvelopeTag,
+	sendRecipe,
+	updateSchema,
 } from '../../service/MessageService.js'
 import { showNewMessagesNotification } from '../../service/NotificationService.js'
 import { savePreference } from '../../service/PreferenceService.js'
@@ -1783,6 +1785,20 @@ export default function mainStoreActions() {
 				data: {
 					snoozeMailboxId,
 				},
+			})
+		},
+		async sendRecipeToCookbook(payload) {
+			return handleHttpAuthErrors(async () => {
+				const result = await sendRecipe(payload.recipe)
+				return result
+			})
+		},
+
+		async callLiveUri({ commit }, { liveUri }) {
+			return handleHttpAuthErrors(commit, async () => {
+				const result = await updateSchema(liveUri)
+
+				return result
 			})
 		},
 		async setLayout({ list }) {
