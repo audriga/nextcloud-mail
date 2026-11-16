@@ -10,7 +10,6 @@ declare(strict_types=1);
 namespace OCA\Mail\Controller;
 
 use OCA\Mail\AppInfo\Application;
-use OCA\Mail\ConfigLexicon;
 use OCA\Mail\Exception\ValidationException;
 use OCA\Mail\Http\JsonResponse as HttpJsonResponse;
 use OCA\Mail\Service\AntiSpamService;
@@ -19,22 +18,32 @@ use OCA\Mail\Service\Provisioning\Manager as ProvisioningManager;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\OpenAPI;
 use OCP\AppFramework\Http\JSONResponse;
-use OCP\IAppConfig;
+use OCP\IConfig;
 use OCP\IRequest;
 use Psr\Container\ContainerInterface;
+
 use function array_merge;
 
 #[OpenAPI(scope: OpenAPI::SCOPE_IGNORE)]
 class SettingsController extends Controller {
+	private ProvisioningManager $provisioningManager;
+	private AntiSpamService $antiSpamService;
+	private ContainerInterface $container;
+	private IConfig $config;
+
 	public function __construct(
 		IRequest $request,
-		private ProvisioningManager $provisioningManager,
-		private AntiSpamService $antiSpamService,
-		private IAppConfig $appConfig,
-		private ContainerInterface $container,
+		ProvisioningManager $provisioningManager,
+		AntiSpamService $antiSpamService,
+		IConfig $config,
+		ContainerInterface $container,
 		private ClassificationSettingsService $classificationSettingsService,
 	) {
 		parent::__construct(Application::APP_ID, $request);
+		$this->provisioningManager = $provisioningManager;
+		$this->antiSpamService = $antiSpamService;
+		$this->config = $config;
+		$this->container = $container;
 	}
 
 	public function index(): JSONResponse {
@@ -102,19 +111,24 @@ class SettingsController extends Controller {
 	}
 
 	public function setAllowNewMailAccounts(bool $allowed): void {
-		$this->appConfig->setValueBool(Application::APP_ID, ConfigLexicon::ALLOW_NEW_MAIL_ACCOUNTS, $allowed);
+		$this->config->setAppValue('mail', 'allow_new_mail_accounts', $allowed ? 'yes' : 'no');
 	}
 
 	public function setEnabledLlmProcessing(bool $enabled): JSONResponse {
-		$this->appConfig->setValueBool(Application::APP_ID, ConfigLexicon::LLM_PROCESSING, $enabled);
+		$this->config->setAppValue('mail', 'llm_processing', $enabled ? 'yes' : 'no');
 		return new JSONResponse([]);
 	}
 	public function setLayoutMessageView(string $value): JSONResponse {
-		$this->appConfig->setValueString(Application::APP_ID, ConfigLexicon::LAYOUT_MESSAGE_VIEW, $value);
+		$this->config->setAppValue('mail', 'layout_message_view', $value);
 		return new JSONResponse([]);
 	}
 	public function setImportanceClassificationEnabledByDefault(bool $enabledByDefault): JSONResponse {
 		$this->classificationSettingsService->setClassificationEnabledByDefault($enabledByDefault);
+		return new JSONResponse([]);
+	}
+
+	public function setMarkupExtractionLibrary(string $value): JSONResponse {
+		$this->config->setAppValue('mail', 'markup_library_used_for_extraction', $value);
 		return new JSONResponse([]);
 	}
 

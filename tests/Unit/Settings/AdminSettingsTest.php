@@ -37,70 +37,81 @@ class AdminSettingsTest extends TestCase {
 	}
 
 	public function testGetForm() {
-		$this->serviceMock->getParameter('initialStateService')->expects($this->exactly(16))
+		$this->serviceMock->getParameter('initialStateService')->expects($this->exactly(14))
 			->method('provideInitialState')
 			->withConsecutive(
 				[
+					Application::APP_ID,
 					'provisioning_settings',
 					$this->anything()
 				],
 				[
+					Application::APP_ID,
 					'antispam_setting',
 					$this->anything()
 				],
 				[
+					Application::APP_ID,
 					'allow_new_mail_accounts',
 					$this->anything()
 				],
 				[
+					Application::APP_ID,
 					'layout_message_view',
 					$this->anything()
 				],
 				[
+					Application::APP_ID,
+					'markup_library_used_for_extraction',
+					$this->anything()
+				],
+				[
+					Application::APP_ID,
 					'llm_processing',
 					$this->anything()
 				],
 				[
+					Application::APP_ID,
 					'enabled_llm_free_prompt_backend',
 					$this->anything()
 				],
 				[
+					Application::APP_ID,
 					'enabled_llm_summary_backend',
 					$this->anything()
 				],
 				[
+					Application::APP_ID,
 					'google_oauth_client_id',
 					$this->anything()
 				],
 				[
+					Application::APP_ID,
 					'google_oauth_redirect_url',
 					$this->anything()
 				],
 				[
+					Application::APP_ID,
 					'importance_classification_default',
 					$this->anything()
 				],
 				[
-					'oidc_providers',
-					$this->anything()
-				],
-				[
-					'oidc_redirect_url',
-					$this->anything()
-				],
-				[
+					Application::APP_ID,
 					'microsoft_oauth_tenant_id',
 					$this->anything()
 				],
 				[
+					Application::APP_ID,
 					'microsoft_oauth_client_id',
 					$this->anything()
 				],
 				[
+					Application::APP_ID,
 					'microsoft_oauth_redirect_url',
 					$this->anything()
 				],
 				[
+					Application::APP_ID,
 					'microsoft_oauth_docs',
 					$this->anything()
 				],
