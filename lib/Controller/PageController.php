@@ -498,11 +498,19 @@ class PageController extends Controller {
 		return new RedirectResponse($baseUrl . $name);
 	}
 	/**
+	 * @param string|null $itemid SessionStorage item ID for JSON-LD compose
+	 * @param mixed $accountId Optional mail account ID
 	 * @return TemplateResponse
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	public function mailto(): TemplateResponse {
+	public function mailto(?string $itemid = null, mixed $accountId = null): TemplateResponse {
+		if ($itemid !== null && $itemid !== '') {
+			$this->initialStateService->provideInitialState('mailto_item_id', $itemid);
+		}
+		if ($accountId !== null && $accountId !== '') {
+			$this->initialStateService->provideInitialState('mailto_account_id', (int)$accountId);
+		}
 		return $this->index();
 	}
 }

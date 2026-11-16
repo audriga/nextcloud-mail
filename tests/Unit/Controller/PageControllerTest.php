@@ -512,4 +512,16 @@ class PageControllerTest extends TestCase {
 
 		$this->assertEquals($expected, $response);
 	}
+
+	public function testMailtoProvidesItemIdInInitialState(): void {
+		$providedInitialStates = [];
+		$this->initialState->method('provideInitialState')->willReturnCallback(function (string $name, mixed $value) use (&$providedInitialStates): void {
+			$providedInitialStates[$name] = $value;
+		});
+		$response = $this->controller->mailto('item-42', '12');
+
+		$this->assertInstanceOf(TemplateResponse::class, $response);
+		$this->assertSame('item-42', $providedInitialStates['mailto_item_id']);
+		$this->assertSame(12, $providedInitialStates['mailto_account_id']);
+	}
 }
