@@ -63,6 +63,7 @@ import MailPlugin from '../ckeditor/mail/MailPlugin.js'
 import QuotePlugin from '../ckeditor/quote/QuotePlugin.js'
 import SignaturePlugin from '../ckeditor/signature/SignaturePlugin.js'
 import PickerPlugin from '../ckeditor/smartpicker/PickerPlugin.js'
+import StructuredEmailPlugin from '../ckeditor/structuredEmail/StructuredEmailPlugin.js'
 import logger from '../logger.js'
 import { autoCompleteByName } from '../service/ContactIntegrationService.js'
 import { Text, toPlain } from '../util/text.js'
@@ -208,6 +209,7 @@ export default {
 			Mention,
 			Link,
 			FindAndReplace,
+			StructuredEmailPlugin,
 		]
 		const toolbar = ['undo', 'redo']
 
@@ -339,6 +341,12 @@ export default {
 							name: 'img',
 							attributes: ['src', 'alt', 'title', 'width', 'height', 'data-cid', 'loading'],
 							styles: true,
+						},
+						{
+							name: 'script',
+							attributes: {
+								type: true,
+							},
 						},
 					],
 				},
