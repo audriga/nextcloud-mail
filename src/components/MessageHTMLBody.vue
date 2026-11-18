@@ -52,7 +52,6 @@
 import iframeResize from '@iframe-resizer/parent'
 import { loadState } from '@nextcloud/initial-state'
 import { NcActionButton as ActionButton, NcActions as Actions } from '@nextcloud/vue'
-import PrintScout from 'printscout'
 import IconDomain from 'vue-material-design-icons/Domain.vue'
 import IconMail from 'vue-material-design-icons/EmailOutline.vue'
 import IconImage from 'vue-material-design-icons/ImageSizeSelectActual.vue'
@@ -61,8 +60,6 @@ import NeedsTranslationInfo from './NeedsTranslationInfo.vue'
 import logger from '../logger.js'
 import { needsTranslation } from '../service/AiIntergrationsService.js'
 import { trustSender } from '../service/TrustedSenderService.js'
-
-const scout = new PrintScout()
 
 export default {
 	name: 'MessageHTMLBody',
@@ -114,10 +111,6 @@ export default {
 		},
 	},
 
-	beforeMount() {
-		scout.on('beforeprint', this.onBeforePrint)
-	},
-
 	async mounted() {
 		iframeResize({
 			license: 'GPLv3',
@@ -131,7 +124,6 @@ export default {
 	},
 
 	beforeUnmount() {
-		scout.off('beforeprint', this.onBeforePrint)
 		this.removeLinkHoverHandlers()
 		this.$refs.iframe.iFrameResizer.close()
 	},

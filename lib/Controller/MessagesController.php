@@ -240,7 +240,7 @@ class MessagesController extends Controller {
 				$json['schema'] = $itineraries;
 			}
 		} else {
-			$schema = $this->schemaService->extract($account, $mailbox, $message->getId());
+			$schema = $this->schemaService->extract($account, $mailbox, $message->getUid());
 			if ($schema) {
 				$json['schema'] = $schema;
 			}

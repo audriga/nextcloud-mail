@@ -45,9 +45,6 @@ export default {
 
 	async mounted() {
 		initAfterAppCreation()
-		await new Promise((resolve, reject) => {
-			this.$router.onReady(resolve, reject)
-		})
 		// Redirect to setup page if no accounts are configured
 		if (!this.hasMailAccounts) {
 			this.$router.replace({

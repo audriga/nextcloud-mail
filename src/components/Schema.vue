@@ -22,12 +22,17 @@
 <template>
 	<div class="schema">
 		<div v-html="html" />
-		<type-renderer ref="rendererEl" :data="jsonldData"
-        	:current-user="currentUser"
-        />
-		<div class="schema-action-bar">
-			<SchemaActionBar @update-from-live-uri="updateData" />
-		</div>
+		<template v-for="(item, index) in items" :key="index">
+			<type-renderer :data="JSON.stringify(item.data)"
+				:current-user="currentUser"
+				:view="normal"
+			/>
+			<div class="schema-action-bar">
+				<SchemaActionBar :entry="item.data"
+					:is-required-app-installed="item.isRequiredAppInstalled"
+					@update-from-live-uri="(values) => updateData(index, values)" />
+			</div>
+		</template>
 	</div>
 </template>
 
@@ -35,6 +40,7 @@
 import 'json-ld-web-components/type-renderer'
 import { loadState } from '@nextcloud/initial-state'
 import useMainStore from '../store/mainStore.js'
+import logger from '../logger.js'
 import SchemaActionBar from './SchemaActionBar.vue'
 
 
@@ -57,16 +63,11 @@ export default {
 	},
 	data() {
 		return {
-			schema: '',
 			html: '',
-			isRequiredAppInstalled: null,
+			items: [],
 		}
 	},
 	computed: {
-		jsonldData() {
-			console.log(JSON.stringify(this.schema))
-			return JSON.stringify(this.schema)
-		},
 		currentUser() {
             // 1. Core primary email address
             const userEmailFromCore = loadState('mail', 'prefill_email', '')
@@ -90,24 +91,39 @@ export default {
         },
 	},
 	created() {
-		// Decompose the schema object to see whether the app required
-		// for button rendering is installed on the instance.
-		const { isRequiredAppInstalled, ...otherProperties } = this.json
+		// The backend flags whether the app required for an action is installed.
+		// Strip the flag from the JSON-LD so it is not rendered.
+		const entries = Array.isArray(this.json) ? this.json : [this.json]
 
-		this.schema = { ...otherProperties }
-		this.isRequiredAppInstalled = { isRequiredAppInstalled }
+		this.items = entries.map(({ isRequiredAppInstalled, ...data }) => ({
+			data,
+			isRequiredAppInstalled: isRequiredAppInstalled === true,
+		}))
+
+		logger.debug('SML schema: received json-ld', {
+			isArray: Array.isArray(this.json),
+			isEmpty: !this.json || Object.keys(this.json).length === 0,
+			items: this.items.map((item) => ({
+				type: item.data['@type'],
+				requiredAppInstalled: item.isRequiredAppInstalled,
+			})),
+		})
+	},
+	mounted() {
+		logger.debug('SML schema: mounted', {
+			typeRendererRegistered: customElements.get('type-renderer') !== undefined,
+			renderedRenderers: this.$el?.querySelectorAll('type-renderer').length ?? 0,
+		})
 	},
 	methods: {
-		async updateData(updatedValues) {
+		updateData(index, updatedValues) {
+			const { data } = this.items[index]
+
 			for (const key in updatedValues) {
-				if (Object.prototype.hasOwnProperty.call(this.schema, key)) {
-					this.schema[key] = updatedValues[key]
+				if (Object.prototype.hasOwnProperty.call(data, key)) {
+					data[key] = updatedValues[key]
 				}
 			}
-
-		},
-		appIsInstalled(appName) {
-			return Object.prototype.hasOwnProperty.call(this.installedApps, appName)
 		},
 	},
 }

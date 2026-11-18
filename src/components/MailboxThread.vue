@@ -196,8 +196,8 @@
 </template>
 
 <script>
-import { NcAppContent as AppContent, NcAppContentList as AppContentList, NcButton as ButtonVue, isMobile, NcPopover } from '@nextcloud/vue'
-import addressParser from 'address-rfc2822'
+import { NcAppContent as AppContent, NcAppContentList as AppContentList, NcButton as ButtonVue, NcPopover } from '@nextcloud/vue'
+import { useIsMobile } from '@nextcloud/vue/composables/useIsMobile'
 import mitt from 'mitt'
 import { mapStores } from 'pinia'
 import IconInfo from 'vue-material-design-icons/InformationOutline.vue'
@@ -221,6 +221,7 @@ import {
 	priorityOtherQuery,
 } from '../util/priorityInbox.js'
 import { detect, toHtml, toPlain } from '../util/text.js'
+import { parseEmailList } from '../util/emailAddress.js'
 import { loadState } from '@nextcloud/initial-state'
 import hetc from 'hetc/hetc-bundle.mjs'
 
@@ -245,7 +246,11 @@ export default {
 		Thread,
 	},
 
-	mixins: [isMobile],
+	setup() {
+		return {
+			isMobile: useIsMobile(),
+		}
+	},
 	props: {
 		account: {
 			type: Object,
@@ -611,29 +616,7 @@ export default {
 		},
 
 		stringToRecipients(str) {
-			if (str === undefined) {
-				return []
-			}
-
-			let addresses = []
-			try {
-				addresses = addressParser.parse(str)
-			} catch (error) {
-				logger.debug('could not parse string into email addresses', { str, error })
-			}
-
-			return addresses.map((address) => {
-				const result = {
-					label: address.name(),
-					email: address.address,
-				}
-
-				if (result.label === '') {
-					result.label = result.email
-				}
-
-				return result
-			})
+			return parseEmailList(str)
 		},
 
 		onUpdateSearchQuery(query) {

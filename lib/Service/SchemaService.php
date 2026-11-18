@@ -80,8 +80,11 @@ class SchemaService {
 
 	public function extract(Account $account, Mailbox $mailbox, int $id) {
 		if ($cached = ($this->getCached($account, $mailbox, $id))) {
+			$this->logger->debug('SML schema: cache hit for message ' . $id);
 			return $cached;
 		}
+
+		$this->logger->debug('SML schema: cache miss for message ' . $id . ', extracting');
 
 		$client = $this->clientFactory->getClient($account);
 		$schema = null;
@@ -89,7 +92,12 @@ class SchemaService {
 		try {
 			$htmlBody = $this->messageMapper->getHtmlBody($client, $mailbox->getName(), $id, $account->getUserId());
 			if ($htmlBody !== null) {
-				$schema = json_decode(MarkupUtil::getJsonLdFromHtmlString($htmlBody, "www.example.com"));
+				$rawJsonLd = (string)MarkupUtil::getJsonLdFromHtmlString($htmlBody, "www.example.com");
+				$this->logger->debug('SML schema: html body ' . strlen($htmlBody) . ' bytes, ld+json in html: ' . (stripos($htmlBody, 'ld+json') !== false ? 'yes' : 'no') . ', markup lib returned ' . strlen($rawJsonLd) . ' bytes');
+				$schema = json_decode($rawJsonLd);
+				if ($schema === null && json_last_error() !== JSON_ERROR_NONE) {
+					$this->logger->debug('SML schema: json_decode failed for message ' . $id . ': ' . json_last_error_msg());
+				}
 				
 				if (is_null($schema)) {
 					$this->logger->debug('Found no schema entries in the message HTML body');
@@ -104,36 +112,39 @@ class SchemaService {
 		}
 
 		$cache_key = $this->buildCacheKey($account, $mailbox, $id);
-		$this->cache->set($cache_key, json_encode($schema), self::CACHE_TTL);
 
 		if (is_null($schema)) {
+			$this->cache->set($cache_key, json_encode($schema), self::CACHE_TTL);
 			return;
 		}
 
-		$result = $schema;
+		$this->flagRequiredApps($schema);
+		$this->logger->debug('SML schema: caching ' . (is_array($schema) ? 'array of ' . count($schema) . ' entries' : 'single object') . ' for message ' . $id);
+		$this->cache->set($cache_key, json_encode($schema), self::CACHE_TTL);
 
-		// For adding actions in the UI, we need to check if the required app is installed.
+		return $schema;
+	}
+
+	/**
+	 * Flags each entry whose type needs an app for its UI actions. Done before caching so the flag survives cache hits.
+	 */
+	private function flagRequiredApps(array|object $schema): void {
 		$requiredAppForTypeMap = [
 			"Recipe" => "cookbook"
 			// TODO: Add future dependencies here.
 		];
 
-		$schemaType = is_array($result) ? $result[0]->{"@type"} : $result->{"@type"};
-
-		if (!array_key_exists($schemaType, $requiredAppForTypeMap)) {
-			return $result;
-		}
-
 		$installedApps = $this->appManager->getInstalledApps();
-
-		// Schema Object is being hijacked here. This is reverted thorugh object
-		// decomposition in the frontend.
-		if (in_array($requiredAppForTypeMap[$schemaType], $installedApps)) {
-			$result->isRequiredAppInstalled = true;
-		} else {
-			$result->isRequiredAppInstalled = false;
+		$entries = is_array($schema) ? $schema : [$schema];
+		foreach ($entries as $entry) {
+			if (!is_object($entry) || !is_string($entry->{"@type"} ?? null)) {
+				continue;
+			}
+			$type = $entry->{"@type"};
+			if (!array_key_exists($type, $requiredAppForTypeMap)) {
+				continue;
+			}
+			$entry->isRequiredAppInstalled = in_array($requiredAppForTypeMap[$type], $installedApps, true);
 		}
-
-		return $result;
 	}
 }

@@ -1,6 +1,6 @@
 import { Command } from 'ckeditor5'
-import Vue from 'vue'
-import { renderWidget } from '@nextcloud/vue/dist/Components/NcRichText.js'
+import { createApp, defineComponent, h } from 'vue'
+import { renderWidget } from '@nextcloud/vue/components/NcRichText'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 
@@ -116,8 +116,28 @@ export default class RenderLinkPreview extends Command {
 
         const editor = this.editor
         const command = this
+        let previewApp = null
+        let previewVm = null
+        const previewContainer = document.createElement('div')
+        previewContainer.className = 'render-link-preview-container'
 
-        const PreviewComponent = Vue.extend({
+        const onPreviewUnmounted = () => {
+            console.debug(
+                '[RenderLinkPreview] Removing preview container',
+                {
+                    url,
+                },
+            )
+
+            previewContainer.remove()
+
+            if (command.previewVm === previewVm) {
+                command.previewVm = null
+                command.previewContainer = null
+            }
+        }
+
+        const PreviewComponent = defineComponent({
             data() {
                 return {
                     visible: true,
@@ -131,7 +151,7 @@ export default class RenderLinkPreview extends Command {
                 }
             },
 
-            render(h) {
+            render() {
                 if (!this.visible) {
                     return h('div')
                 }
@@ -140,10 +160,8 @@ export default class RenderLinkPreview extends Command {
                     'div',
                     {
                         class: 'render-link-preview-popover',
-                        attrs: {
-                            role: 'dialog',
-                            'aria-label': 'Link preview',
-                        },
+                        role: 'dialog',
+                        'aria-label': 'Link preview',
                         style: {
                             position: 'fixed',
                             left: `${Number(this.position.left)}px`,
@@ -185,11 +203,9 @@ export default class RenderLinkPreview extends Command {
                             'button',
                             {
                                 class: 'render-link-preview-close',
-                                attrs: {
-                                    type: 'button',
-                                    'aria-label': 'Close link preview',
-                                    title: 'Close link preview',
-                                },
+                                type: 'button',
+                                'aria-label': 'Close link preview',
+                                title: 'Close link preview',
                                 style: {
                                     position: 'absolute',
                                     top: '4px',
@@ -206,17 +222,15 @@ export default class RenderLinkPreview extends Command {
                                     lineHeight: '24px',
                                     cursor: 'pointer',
                                 },
-                                on: {
-                                    click: (event) => {
-                                        event.preventDefault()
-                                        event.stopPropagation()
+                                onClick: (event) => {
+                                    event.preventDefault()
+                                    event.stopPropagation()
 
-                                        console.debug(
-                                            '[RenderLinkPreview] Close button clicked',
-                                        )
+                                    console.debug(
+                                        '[RenderLinkPreview] Close button clicked',
+                                    )
 
-                                        this.close()
-                                    },
+                                    this.close()
                                 },
                             },
                             '×',
@@ -254,23 +268,19 @@ export default class RenderLinkPreview extends Command {
                                     'button',
                                     {
                                         class: 'button primary',
-                                        attrs: {
-                                            type: 'button',
-                                        },
+                                        type: 'button',
                                         style: {
                                             cursor: 'pointer',
                                         },
-                                        on: {
-                                            click: (event) => {
-                                                event.preventDefault()
-                                                event.stopPropagation()
+                                        onClick: (event) => {
+                                            event.preventDefault()
+                                            event.stopPropagation()
 
-                                                console.debug(
-                                                    '[RenderLinkPreview] Insert clicked',
-                                                )
+                                            console.debug(
+                                                '[RenderLinkPreview] Insert clicked',
+                                            )
 
-                                                this.insertReference()
-                                            },
+                                            this.insertReference()
                                         },
                                     },
                                     'Insert',
@@ -362,7 +372,7 @@ export default class RenderLinkPreview extends Command {
                 })
             },
 
-            beforeDestroy() {
+            beforeUnmount() {
                 console.debug(
                     '[RenderLinkPreview] Preview component beforeDestroy',
                     {
@@ -384,6 +394,10 @@ export default class RenderLinkPreview extends Command {
                     window.removeEventListener('blur', this._handleWindowBlur)
                     this._handleWindowBlur = null
                 }
+            },
+
+            unmounted() {
+                onPreviewUnmounted()
             },
 
             methods: {
@@ -524,37 +538,17 @@ export default class RenderLinkPreview extends Command {
                     this.closing = true
                     this.clearHideTimeout()
                     this.visible = false
-                    this.$destroy()
+                    previewApp?.unmount()
                 },
             },
         })
 
-        this.previewContainer = document.createElement('div')
-        this.previewContainer.className = 'render-link-preview-container'
-        document.body.appendChild(this.previewContainer)
+        this.previewContainer = previewContainer
+        document.body.appendChild(previewContainer)
 
-        const previewVm = new PreviewComponent().$mount(
-            this.previewContainer,
-        )
+        previewApp = createApp(PreviewComponent)
+        previewVm = previewApp.mount(previewContainer)
         this.previewVm = previewVm
-
-        previewVm.$on('hook:destroyed', () => {
-            console.debug(
-                '[RenderLinkPreview] Removing preview container',
-                {
-                    url,
-                },
-            )
-
-            previewVm.$el?.remove()
-
-            previewVm.$off()
-
-            if (this.previewVm === previewVm) {
-                this.previewVm = null
-                this.previewContainer = null
-            }
-        })
     }
 
     isPointerInsidePreview() {

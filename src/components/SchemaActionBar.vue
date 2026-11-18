@@ -77,14 +77,14 @@
 <script>
 
 import { NcActionButton } from '@nextcloud/vue'
-import NcActions from '@nextcloud/vue/dist/Components/NcActions.js'
+import NcActions from '@nextcloud/vue/components/NcActions'
 import SilverwareForkKnifeIcon from 'vue-material-design-icons/SilverwareForkKnife.vue'
 import CheckIcon from 'vue-material-design-icons/Check.vue'
 import CloseIcon from 'vue-material-design-icons/Close.vue'
 import OpenInNewIcon from 'vue-material-design-icons/OpenInNew.vue'
 import MapMarkerIcon from 'vue-material-design-icons/MapMarker.vue'
 import MapSearchOutlineIcon from 'vue-material-design-icons/MapSearchOutline.vue'
-import IconLoading from '@nextcloud/vue/dist/Components/NcLoadingIcon.js'
+import IconLoading from '@nextcloud/vue/components/NcLoadingIcon'
 import useMainStore from '../store/mainStore.js'
 
 
@@ -101,6 +101,16 @@ export default {
 		MapSearchOutlineIcon,
 		IconLoading,
 	},
+	props: {
+		entry: {
+			type: Object,
+			required: true,
+		},
+		isRequiredAppInstalled: {
+			type: Boolean,
+			default: false,
+		},
+	},
 	data() {
 		return {
 			recipeSendSuccess: null,
@@ -110,16 +120,13 @@ export default {
 	},
 	computed: {
 		schemaType() {
-			return this.$parent.json['@type']
+			return this.entry['@type']
 		},
 		hasUrlValue() {
-			return Object.prototype.hasOwnProperty.call(this.$parent.json, 'url')
+			return Object.prototype.hasOwnProperty.call(this.entry, 'url')
 		},
 		hasLiveUri() {
-			return Object.prototype.hasOwnProperty.call(this.$parent.json, 'liveUri')
-		},
-		isRequiredAppInstalled() {
-			return this.$parent.isRequiredAppInstalled
+			return Object.prototype.hasOwnProperty.call(this.entry, 'liveUri')
 		},
 	},
 	methods: {
@@ -135,7 +142,7 @@ export default {
 				this.recipeSendLoading = true
 
 				const success = mainStore.sendRecipeToCookbook( {
-					recipe: this.$parent.json,
+					recipe: this.entry,
 				})
 
 				success.then((value) => {
@@ -156,7 +163,7 @@ export default {
 				this.refreshLocationLoading = true
 
 				const result = mainStore.callLiveUri( {
-					liveUri: encodeURIComponent(this.$parent.json.liveUri),
+					liveUri: encodeURIComponent(this.entry.liveUri),
 				})
 
 				result.then((updatedValues) => {
@@ -170,15 +177,15 @@ export default {
 
 		},
 		openLocationInOSM() {
-			const lat = this.$parent.json.geo.latitude
-			const lon = this.$parent.json.geo.longitude
+			const lat = this.entry.geo.latitude
+			const lon = this.entry.geo.longitude
 
 			const url = 'https://www.openstreetmap.org/#map=16/' + lat + '/' + lon
 
 			window.open(url, '_blank').focus()
 		},
 		openUrlInNewWindow() {
-			window.open(this.$parent.json.url, '_blank').focus()
+			window.open(this.entry.url, '_blank').focus()
 		},
 	},
 }

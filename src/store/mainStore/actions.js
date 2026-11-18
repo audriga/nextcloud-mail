@@ -501,7 +501,7 @@ export default function mainStoreActions() {
 					},
 				))
 				if (!discard) {
-					this.showMessageComposer()
+					this.showMessageComposerMutation()
 					return
 				}
 			}
@@ -1794,8 +1794,8 @@ export default function mainStoreActions() {
 			})
 		},
 
-		async callLiveUri({ commit }, { liveUri }) {
-			return handleHttpAuthErrors(commit, async () => {
+		async callLiveUri({ liveUri }) {
+			return handleHttpAuthErrors(async () => {
 				const result = await updateSchema(liveUri)
 
 				return result

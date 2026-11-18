@@ -21,6 +21,7 @@
 <script>
 import { NcContent } from '@nextcloud/vue'
 import { mapState, mapStores } from 'pinia'
+import { defineAsyncComponent } from 'vue'
 import ComposerSessionIndicator from '../components/ComposerSessionIndicator.vue'
 import MailboxThread from '../components/MailboxThread.vue'
 import Navigation from '../components/Navigation.vue'
@@ -37,7 +38,7 @@ export default {
 		NcContent,
 		MailboxThread,
 		Navigation,
-		NewMessageModal: () => import(/* webpackChunkName: "new-message-modal" */ '../components/NewMessageModal.vue'),
+		NewMessageModal: defineAsyncComponent(() => import(/* webpackChunkName: "new-message-modal" */ '../components/NewMessageModal.vue')),
 		Outbox,
 		ComposerSessionIndicator,
 	},
@@ -129,15 +130,16 @@ export default {
 				name: 'setup',
 			})
 		} else if (this.$route.name === 'mailto') {
-			if (accounts.length === 0) {
+			const firstAccount = accounts.find((account) => !account.isUnified)
+			if (!firstAccount) {
 				logger.error('cannot handle mailto:, no accounts configured')
 				return
 			}
 
-			// Show first account
-			const firstAccount = accounts[0]
 			// FIXME: this assumes that there's at least one mailbox
-			const firstMailbox = this.mainStore.getMailboxes(firstAccount.id)[0]
+			const mailboxes = this.mainStore.getMailboxes(firstAccount.id)
+			// Virtual priority and unified inboxes have accountId 0 and no message list for this account
+			const firstMailbox = mailboxes.find((mailbox) => mailbox.specialRole === 'inbox' && mailbox.accountId === firstAccount.id) ?? mailboxes[0]
 
 			logger.debug('loading composer with first account and folder', { accountId: firstAccount.id, mailboxId: firstMailbox.id })
 
