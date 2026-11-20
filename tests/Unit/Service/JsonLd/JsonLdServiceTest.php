@@ -56,6 +56,7 @@ class JsonLdServiceTest extends TestCase {
 		$this->urlGenerator->method('linkToRouteAbsolute')->willReturnCallback(
 			static fn (string $route, array $parameters): string => match ($route) {
 				'mail.jsonld.message' => 'https://cloud.example.com/apps/mail/lda/message/' . $parameters['id'] . (isset($parameters['format']) ? '?format=' . $parameters['format'] : ''),
+				'mail.jsonld.thread' => 'https://cloud.example.com/apps/mail/lda/thread/' . $parameters['id'] . (isset($parameters['format']) ? '?format=' . $parameters['format'] : ''),
 				'mail.page.thread' => 'https://cloud.example.com/apps/mail/box/' . $parameters['mailboxId'] . '/thread/' . $parameters['id'],
 			},
 		);
@@ -199,7 +200,7 @@ class JsonLdServiceTest extends TestCase {
 		$this->assertSame('42', $result['id']);
 		$this->assertSame('Subject', $result['headline']);
 		$this->assertSame(1, $result['numberOfItems']);
-		$this->assertArrayNotHasKey('potentialAction', $result);
+		$this->assertSame([['@type' => 'RefreshAction', 'target' => 'https://cloud.example.com/apps/mail/lda/thread/42', 'authentication' => 'basic']], $result['potentialAction']);
 		$this->assertSame([['@type' => 'ViewAction', 'target' => 'https://cloud.example.com/apps/mail/box/3/thread/42']], $result['itemListElement'][0]['potentialAction']);
 	}
 
@@ -226,6 +227,30 @@ class JsonLdServiceTest extends TestCase {
 		$this->assertSame(['<m1@example.com>', '<m3@example.com>', '<m2@example.com>'], array_column($result['itemListElement'], 'identifier'));
 		$this->assertSame('text/html', $result['itemListElement'][0]['encodingFormat']);
 		$this->assertSame('text/plain', $result['itemListElement'][1]['encodingFormat']);
+	}
+
+	public function testGetThreadHasRefreshActionOnThreadEndpoint(): void {
+		$requested = $this->message(1, 100, 'root@example.com');
+		$this->mailManager->method('getMessage')->willReturn($requested);
+		$this->mailManager->method('getThread')->willReturn([$requested]);
+		$this->stubImapMessages([1 => '<m1@example.com>']);
+
+		$result = $this->service->getThread('alice', 1);
+
+		$this->assertSame([
+			['@type' => 'RefreshAction', 'target' => 'https://cloud.example.com/apps/mail/lda/thread/1', 'authentication' => 'basic'],
+		], $result['potentialAction']);
+	}
+
+	public function testGetThreadPlainRefreshActionKeepsFormat(): void {
+		$requested = $this->message(1, 100, 'root@example.com');
+		$this->mailManager->method('getMessage')->willReturn($requested);
+		$this->mailManager->method('getThread')->willReturn([$requested]);
+		$this->stubImapMessages([1 => '<m1@example.com>']);
+
+		$result = $this->service->getThread('alice', 1, JsonLdService::FORMAT_PLAIN);
+
+		$this->assertSame('https://cloud.example.com/apps/mail/lda/thread/1?format=plain', $result['potentialAction'][0]['target']);
 	}
 
 	public function testGetThreadSkipsMessagesThatFailToLoad(): void {

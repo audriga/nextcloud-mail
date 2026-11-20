@@ -24,7 +24,7 @@ class EmailMessageMapper {
 	/**
 	 * @param list<array> $messages mapped messages
 	 */
-	public function mapConversation(string $headline, array $messages, string $id): array {
+	public function mapConversation(string $headline, array $messages, string $id, string $refreshUrl): array {
 		return [
 			'@context' => self::CONTEXT,
 			'@type' => 'Conversation',
@@ -32,6 +32,9 @@ class EmailMessageMapper {
 			'headline' => $headline,
 			'numberOfItems' => count($messages),
 			'itemListElement' => array_map(static fn (array $message): array => array_diff_key($message, ['@context' => true]), $messages),
+			'potentialAction' => [
+				['@type' => 'RefreshAction', 'target' => $refreshUrl, 'authentication' => 'basic'],
+			],
 		];
 	}
 

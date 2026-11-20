@@ -14,6 +14,7 @@ use OCA\Mail\Service\JsonLd\EmailMessageMapper;
 class EmailMessageMapperTest extends TestCase {
 	private const MESSAGE_URL = 'https://cloud.example.com/apps/mail/lda/message/194';
 	private const MESSAGE_PLAIN_URL = 'https://cloud.example.com/apps/mail/lda/message/194?format=plain';
+	private const THREAD_URL = 'https://cloud.example.com/apps/mail/lda/thread/194';
 	private const VIEW_URL = 'https://cloud.example.com/apps/mail/box/12/thread/194';
 
 	private EmailMessageMapper $mapper;
@@ -125,6 +126,7 @@ class EmailMessageMapperTest extends TestCase {
 			'Project status update and Q3 planning',
 			[$item1, $item2],
 			'194',
+			self::THREAD_URL,
 		);
 
 		$this->assertSame([
@@ -137,8 +139,9 @@ class EmailMessageMapperTest extends TestCase {
 				array_diff_key($item1, ['@context' => true]),
 				array_diff_key($item2, ['@context' => true]),
 			],
+			'potentialAction' => [
+				['@type' => 'RefreshAction', 'target' => self::THREAD_URL, 'authentication' => 'basic'],
+			],
 		], $conversation);
-		$this->assertArrayNotHasKey('potentialAction', $conversation);
-		// Each item in itemListElement has only ViewAction if mapped with emailMessageItem
 	}
 }

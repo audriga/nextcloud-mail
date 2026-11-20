@@ -92,6 +92,7 @@ class JsonLdService {
 			$headline,
 			$items,
 			(string)$id,
+			$this->threadUrl($id, $format),
 		);
 	}
 
@@ -141,11 +142,19 @@ class JsonLdService {
 	}
 
 	private function messageUrl(int $id, string $format): string {
+		return $this->jsonLdUrl('mail.jsonld.message', $id, $format);
+	}
+
+	private function threadUrl(int $id, string $format): string {
+		return $this->jsonLdUrl('mail.jsonld.thread', $id, $format);
+	}
+
+	private function jsonLdUrl(string $route, int $id, string $format): string {
 		$params = ['id' => $id];
 		if ($format === self::FORMAT_PLAIN) {
 			$params['format'] = 'plain';
 		}
-		return $this->urlGenerator->linkToRouteAbsolute('mail.jsonld.message', $params);
+		return $this->urlGenerator->linkToRouteAbsolute($route, $params);
 	}
 
 	private function viewUrl(int $mailboxId, int $id): string {
