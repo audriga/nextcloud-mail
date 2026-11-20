@@ -541,6 +541,16 @@ return [
 			'url' => '/api/textBlocks/{id}/shares',
 			'verb' => 'GET',
 		],
+		[
+			'name' => 'jsonLd#message',
+			'url' => '/lda/message/{id}',
+			'verb' => 'GET',
+		],
+		[
+			'name' => 'jsonLd#thread',
+			'url' => '/lda/thread/{id}',
+			'verb' => 'GET',
+		],
 	],
 	'resources' => [
 		'accounts' => ['url' => '/api/accounts'],
